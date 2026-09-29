@@ -1,5 +1,5 @@
--- ZYRO AUTO STEAL v6 - com waypoints do Lennon + anti-anti-cheat
-print("[Zyro] v6 iniciando...")
+-- ZYRO AUTO STEAL v7 - toggles estilo iOS + walk de volta
+print("[Zyro] v7 iniciando...")
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -23,7 +23,7 @@ pcall(function() sg.Parent = parent end)
 if not sg.Parent then warn("[Zyro] sem ScreenGui"); return end
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.fromOffset(240, 180)
+frame.Size = UDim2.fromOffset(260, 140)
 frame.Position = UDim2.new(0, 20, 0, 100)
 frame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
 frame.BorderSizePixel = 0
@@ -44,24 +44,85 @@ title.TextSize = 16
 title.Font = Enum.Font.GothamBold
 title.Parent = frame
 
-local function btn(texto, y, cor)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.new(0.9, 0, 0, 36)
-    b.Position = UDim2.new(0.05, 0, 0, y)
-    b.BackgroundColor3 = cor
-    b.Text = texto
-    b.TextColor3 = Color3.new(1,1,1)
-    b.TextSize = 12
-    b.Font = Enum.Font.GothamBold
-    b.Parent = frame
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
-    return b
+-- ============================================================
+-- TOGGLE ESTILO iOS
+-- ============================================================
+local function criarToggle(texto, y, corAtivo)
+    -- Label
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -70, 0, 30)
+    label.Position = UDim2.new(0, 12, 0, y)
+    label.BackgroundTransparency = 1
+    label.Text = texto
+    label.TextColor3 = Color3.fromRGB(235, 235, 240)
+    label.TextSize = 13
+    label.Font = Enum.Font.GothamBold
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = frame
+    
+    -- Trilho (fundo)
+    local trilho = Instance.new("Frame")
+    trilho.Size = UDim2.fromOffset(46, 24)
+    trilho.Position = UDim2.new(1, -58, 0, y + 3)
+    trilho.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
+    trilho.BorderSizePixel = 0
+    trilho.Parent = frame
+    Instance.new("UICorner", trilho).CornerRadius = UDim.new(1, 0)
+    
+    -- Bolinha
+    local bola = Instance.new("Frame")
+    bola.Size = UDim2.fromOffset(18, 18)
+    bola.Position = UDim2.new(0, 3, 0.5, -9)
+    bola.BackgroundColor3 = Color3.fromRGB(200, 200, 205)
+    bola.BorderSizePixel = 0
+    bola.Parent = trilho
+    Instance.new("UICorner", bola).CornerRadius = UDim.new(1, 0)
+    
+    -- Botão invisível que cobre tudo
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.fromScale(1, 1)
+    btn.BackgroundTransparency = 1
+    btn.Text = ""
+    btn.Parent = trilho
+    
+    local ativo = false
+    
+    local function atualizar()
+        if ativo then
+            TweenService:Create(trilho, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {BackgroundColor3 = corAtivo}):Play()
+            TweenService:Create(bola, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {Position = UDim2.new(1, -21, 0.5, -9), BackgroundColor3 = Color3.fromRGB(255,255,255)}):Play()
+        else
+            TweenService:Create(trilho, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {BackgroundColor3 = Color3.fromRGB(50, 50, 58)}):Play()
+            TweenService:Create(bola, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {Position = UDim2.new(0, 3, 0.5, -9), BackgroundColor3 = Color3.fromRGB(200, 200, 205)}):Play()
+        end
+    end
+    
+    btn.MouseButton1Click:Connect(function()
+        ativo = not ativo
+        atualizar()
+        if _G._zyroCallbacks and _G._zyroCallbacks[texto] then
+            _G._zyroCallbacks[texto](ativo)
+        end
+    end)
+    
+    return {
+        Set = function(v)
+            ativo = v
+            atualizar()
+        end,
+        Get = function()
+            return ativo
+        end,
+    }
 end
 
-local btnAuto = btn("AUTO STEAL (ciclo)", 38, Color3.fromRGB(180, 40, 40))
-local btnSteal = btn("TP pro melhor ovo", 78, Color3.fromRGB(140, 60, 40))
-local btnHome = btn("TP pra Forest", 118, Color3.fromRGB(40, 80, 180))
+-- Callbacks globais (pra toggle acessar)
+_G._zyroCallbacks = _G._zyroCallbacks or {}
 
+local toggleAuto = criarToggle("Auto Steal", 38, Color3.fromRGB(50, 200, 90))
+local toggleTP = criarToggle("TP pro melhor ovo", 76, Color3.fromRGB(200, 80, 80))
+
+-- Status
 local status = Instance.new("TextLabel")
 status.Size = UDim2.new(1, 0, 0, 20)
 status.Position = UDim2.new(0, 0, 1, -22)
@@ -71,6 +132,11 @@ status.TextColor3 = Color3.fromRGB(100, 255, 140)
 status.TextSize = 10
 status.Font = Enum.Font.Gotham
 status.Parent = frame
+
+local function setStatus(txt, color)
+    status.Text = txt
+    status.TextColor3 = color or Color3.fromRGB(180, 180, 200)
+end
 
 -- ============================================================
 -- SETUP
@@ -82,16 +148,12 @@ pcall(function() Assets = require(ReplicatedStorage:WaitForChild("Data", 5):Wait
 pcall(function() Mutations = require(ReplicatedStorage:WaitForChild("Shared", 5):WaitForChild("Modules", 5):WaitForChild("Mutations", 5)) end)
 
 -- ============================================================
--- WAYPOINTS DO LENNON (exatos)
+-- WAYPOINTS
 -- ============================================================
 local WP = {
-    {name="WP1", pos=Vector3.new(3340.17, 70.52, -331.08), speed=4000},
-    {name="WP2", pos=Vector3.new(2894.71, 75.64, -327.45), speed=4000},
-    {name="WP3", pos=Vector3.new(1923.22, 75.64, -330.11), speed=4000},
-    {name="WP4", pos=Vector3.new(767.54, 70.51, -327.81), speed=4000},
-    {name="WP5", pos=Vector3.new(596.65, 70.52, -316.80), speed=1000},
-    {name="WP6", pos=Vector3.new(573.61, 70.52, -327.54), speed=1000},
-    {name="WP7", pos=Vector3.new(540.18, 70.52, -356.74), speed=1000},
+    [5] = Vector3.new(596.65, 70.52, -316.80),
+    [6] = Vector3.new(573.61, 70.52, -327.54),
+    [7] = Vector3.new(540.18, 70.52, -356.74),
 }
 
 -- ============================================================
@@ -170,21 +232,21 @@ local function applyDS()
     return true
 end
 
--- TP com tween - SEMPRE LENTO (anti-anti-cheat)
+-- TP com tween - SEMPRE LENTO
 local function tpSlow(pos, speed, offsetStuds, lookAtTarget)
-    speed = speed or 500  -- PADRAO LENTO
+    speed = speed or 800
     offsetStuds = offsetStuds or 0
-    if not pos then return false, "pos nil" end
+    if not pos then return false end
     local char = lp.Character
-    if not char then return false, "sem char" end
+    if not char then return false end
     local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return false, "sem HRP" end
+    if not hrp then return false end
 
     applyDS()
     RunService.Heartbeat:Wait()
 
     hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then restoreDS(); return false, "HRP sumiu" end
+    if not hrp then restoreDS(); return false end
 
     local dest = pos
     local lookDir = nil
@@ -209,7 +271,6 @@ local function tpSlow(pos, speed, offsetStuds, lookAtTarget)
     local targetCF = CFrame.new(dest)
     if lookDir then targetCF = CFrame.lookAt(dest, dest + lookDir) end
 
-    -- Tween com timeout de 10s
     local tween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCF})
     tween:Play()
 
@@ -224,7 +285,7 @@ local function tpSlow(pos, speed, offsetStuds, lookAtTarget)
         hrp.AssemblyLinearVelocity = Vector3.zero
         hrp.AssemblyAngularVelocity = Vector3.zero
     end)
-    return true, "ok"
+    return true
 end
 
 -- ============================================================
@@ -262,7 +323,7 @@ local function getBestEgg()
                     if v > bv then bv = v; best = rec end
                 end
             end
-            if best then return best, "ok" end
+            if best then return best end
         end
     end
     if networking then
@@ -278,17 +339,17 @@ local function getBestEgg()
                         if v > bv then bv = v; best = rec end
                     end
                 end
-                if best then return best, "ok" end
+                if best then return best end
             end
         end
     end
-    return nil, "sem ovos"
+    return nil
 end
 
 local function carryEgg(uid)
     if EggState and type(EggState.CarryFieldEgg) == "function" then
         local ok, r = pcall(EggState.CarryFieldEgg, uid)
-        if ok and r ~= false then return true, "EggState" end
+        if ok and r ~= false then return true end
     end
     if networking then
         local rf = networking:FindFirstChild("RF/EggWorld/AskFieldEggCarry")
@@ -296,147 +357,169 @@ local function carryEgg(uid)
             local ok, r = pcall(function()
                 return rf:InvokeServer({Uid = uid})
             end)
-            if ok and r == true then return true, "Remote" end
+            if ok and r == true then return true end
         end
     end
-    return false, "falha carry"
+    return false
+end
+
+-- Checa se tá com ovo na mão
+local function isCarrying(uid)
+    if EggState and type(EggState.ReadOwnerEggs) == "function" then
+        local ok, r = pcall(EggState.ReadOwnerEggs, lp.UserId)
+        if ok and type(r) == "table" then
+            for _, rec in pairs(r) do
+                if type(rec) == "table" and rec.Uid == uid and rec.CarrierUserId == lp.UserId then
+                    return true
+                end
+            end
+        end
+    end
+    return false
 end
 
 -- ============================================================
--- AUTO STEAL (ciclo completo com anti-anti-cheat)
+-- ANDA ATÉ POSIÇÃO (não teleporta)
+-- ============================================================
+local function walkTo(targetPos, timeout)
+    timeout = timeout or 15
+    local char = lp.Character
+    if not char then return false end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not hrp then return false end
+
+    local startTime = tick()
+    while tick() - startTime < timeout do
+        local curChar = lp.Character
+        if not curChar then return false end
+        local curHum = curChar:FindFirstChildOfClass("Humanoid")
+        local curHrp = curChar:FindFirstChild("HumanoidRootPart")
+        if not curHum or not curHrp then return false end
+
+        local myPos = Vector3.new(curHrp.Position.X, 0, curHrp.Position.Z)
+        local tgtPos = Vector3.new(targetPos.X, 0, targetPos.Z)
+        local dist = (myPos - tgtPos).Magnitude
+
+        if dist < 4 then
+            pcall(function() curHum:MoveTo(curHrp.Position) end)
+            return true
+        end
+
+        curHum:MoveTo(targetPos)
+        task.wait(0.1)
+    end
+    return false
+end
+
+-- ============================================================
+-- AUTO STEAL
 -- ============================================================
 local autoRunning = false
-local function setStatus(txt, color)
-    status.Text = txt
-    status.TextColor3 = color or Color3.fromRGB(180, 180, 200)
+
+_G._zyroCallbacks["Auto Steal"] = function(ativo)
+    if ativo then
+        if autoRunning then return end
+        autoRunning = true
+        task.spawn(function()
+            while autoRunning do
+                -- 1) Achar ovo
+                setStatus("Procurando ovo...", Color3.fromRGB(255, 200, 100))
+                local egg = getBestEgg()
+                if not egg then
+                    setStatus("Sem ovo, esperando...", Color3.fromRGB(255, 100, 100))
+                    task.wait(2)
+                    continue
+                end
+
+                -- 2) TP pro ovo (com offset, pra não morrer)
+                setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
+                tpSlow(egg.BottomCFrame.Position, 800, 3, true)
+                if not autoRunning then break end
+                task.wait(0.4)
+
+                -- 3) Spam carry
+                setStatus("Pegando ovo...", Color3.fromRGB(255, 200, 100))
+                local carried = false
+                for i = 1, 20 do
+                    if not autoRunning then break end
+                    if carryEgg(egg.Uid) then
+                        carried = true
+                        break
+                    end
+                    task.wait(0.05)
+                end
+                if not carried then
+                    setStatus("Nao consegui pegar", Color3.fromRGB(255, 100, 100))
+                    restoreDS()
+                    task.wait(1)
+                    continue
+                end
+
+                -- 4) Volta humanoid e ANDA de volta (NÃO teleporta com ovo)
+                restoreDS()
+                task.wait(0.2)
+                
+                -- Confirma que tá com o ovo
+                if not isCarrying(egg.Uid) then
+                    setStatus("Ovo perdido, tentando de novo", Color3.fromRGB(255, 100, 100))
+                    task.wait(0.5)
+                    continue
+                end
+
+                -- Anda até WP5 (safe zone mais próxima) - ANDANDO
+                setStatus("Andando p/ WP5...", Color3.fromRGB(100, 255, 140))
+                walkTo(WP[5], 30)
+                if not autoRunning then break end
+
+                -- Anda até WP6
+                setStatus("Andando p/ WP6...", Color3.fromRGB(100, 255, 140))
+                walkTo(WP[6], 20)
+                if not autoRunning then break end
+
+                -- Anda até WP7
+                setStatus("Andando p/ WP7...", Color3.fromRGB(100, 255, 140))
+                walkTo(WP[7], 20)
+                if not autoRunning then break end
+
+                -- Anda pra safe zone (X+)
+                setStatus("Cruzando safe zone...", Color3.fromRGB(100, 255, 140))
+                local char = lp.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    walkTo(hrp.Position + Vector3.new(80, 0, 0), 15)
+                end
+
+                setStatus("Ciclo ok! Reiniciando...", Color3.fromRGB(100, 255, 140))
+                task.wait(0.5)
+            end
+        end)
+    else
+        autoRunning = false
+        setStatus("Auto Steal parado", Color3.fromRGB(255, 200, 100))
+        restoreDS()
+    end
 end
 
-btnAuto.MouseButton1Click:Connect(function()
-    if autoRunning then
-        autoRunning = false
-        setStatus("AUTO STEAL parado", Color3.fromRGB(255, 200, 100))
-        restoreDS()
-        return
-    end
-    autoRunning = true
-    setStatus("AUTO STEAL iniciado", Color3.fromRGB(100, 255, 140))
-
-    task.spawn(function()
-        while autoRunning do
-            -- 1) Achar o melhor ovo
-            setStatus("Procurando ovo...", Color3.fromRGB(255, 200, 100))
-            local egg, err = getBestEgg()
-            if not egg then
-                setStatus("Sem ovo: " .. tostring(err), Color3.fromRGB(255, 100, 100))
-                task.wait(2)
-                continue
-            end
-
-            -- 2) TP voando pro ovo (LENTO + offset 3)
-            setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
-            local ok = tpSlow(egg.BottomCFrame.Position, 800, 3, true)
-            if not ok then
-                setStatus("TP egg falhou", Color3.fromRGB(255, 100, 100))
-                task.wait(1)
-                continue
-            end
-            task.wait(0.3)
-
-            -- 3) Pega o ovo (spam igual Lennon)
-            setStatus("Pegando ovo...", Color3.fromRGB(255, 200, 100))
-            local carried = false
-            for i = 1, 20 do
-                if not autoRunning then break end
-                local cok = carryEgg(egg.Uid)
-                if cok then
-                    carried = true
-                    break
-                end
-                task.wait(0.05)
-            end
-            if not carried then
-                setStatus("Nao consegui pegar", Color3.fromRGB(255, 100, 100))
-                restoreDS()
-                task.wait(1)
-                continue
-            end
-            setStatus("Ovo na mão, voltando...", Color3.fromRGB(100, 255, 140))
-
-            -- 4) Volta pelos waypoints (LENTO)
-            restoreDS()  -- devolve humanoid real pra andar
-            task.wait(0.2)
-
-            -- WP5 (safe zone mais próxima)
-            setStatus("Voltando WP5...", Color3.fromRGB(100, 200, 255))
-            tpSlow(WP[5].pos, 1000, 0)
-            task.wait(0.2)
-
-            -- WP6
-            setStatus("Voltando WP6...", Color3.fromRGB(100, 200, 255))
-            tpSlow(WP[6].pos, 1000, 0)
-            task.wait(0.2)
-
-            -- WP7 (Forest)
-            setStatus("Voltando WP7...", Color3.fromRGB(100, 200, 255))
-            tpSlow(WP[7].pos, 1000, 0)
-            task.wait(0.2)
-
-            -- 5) Anda até safe zone (com humanoid real)
-            restoreDS()
-            task.wait(0.1)
-            setStatus("Andando ate safe zone...", Color3.fromRGB(100, 255, 140))
-            local char = lp.Character
-            local hum = char and char:FindFirstChildOfClass("Humanoid")
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            if hum and hrp then
-                local start = tick()
-                while autoRunning and tick() - start < 10 do
-                    local curHrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-                    if not curHrp then break end
-                    -- Anda pra FRENTE (X+)
-                    local target = curHrp.Position + Vector3.new(50, 0, 0)
-                    hum:MoveTo(target)
-                    task.wait(0.15)
-                end
-                pcall(function() hum:MoveTo(hrp.Position) end)
-            end
-            task.wait(1)
-            setStatus("Ciclo concluido, reiniciando...", Color3.fromRGB(100, 255, 140))
-            task.wait(0.3)
+-- ============================================================
+-- TP PRO MELHOR OVO
+-- ============================================================
+_G._zyroCallbacks["TP pro melhor ovo"] = function(ativo)
+    if ativo then
+        setStatus("Procurando ovo...", Color3.fromRGB(255, 200, 100))
+        local egg = getBestEgg()
+        if not egg then
+            setStatus("Sem ovo", Color3.fromRGB(255, 100, 100))
+            toggleTP.Set(false)
+            return
         end
-    end)
-end)
-
--- TP pro melhor ovo (só teleporta, LENTO)
-btnSteal.MouseButton1Click:Connect(function()
-    setStatus("Procurando ovo...", Color3.fromRGB(255, 200, 100))
-    local egg, err = getBestEgg()
-    if not egg then
-        setStatus("Erro: " .. tostring(err), Color3.fromRGB(255, 100, 100))
-        return
-    end
-    setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
-    local ok = tpSlow(egg.BottomCFrame.Position, 800, 3, true)
-    task.wait(0.3)
-    restoreDS()
-    if ok then
+        setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
+        tpSlow(egg.BottomCFrame.Position, 800, 3, true)
+        task.wait(0.4)
+        restoreDS()
         setStatus("OK: " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 255, 140))
-    else
-        setStatus("Falha", Color3.fromRGB(255, 100, 100))
+        toggleTP.Set(false)  -- volta pra desligado depois de 1 uso
     end
-end)
+end
 
--- TP pra Forest (via WP7)
-btnHome.MouseButton1Click:Connect(function()
-    setStatus("TP pra Forest...", Color3.fromRGB(100, 200, 255))
-    local ok = tpSlow(WP[7].pos, 1000, 0)
-    task.wait(0.3)
-    restoreDS()
-    if ok then
-        setStatus("Forest OK", Color3.fromRGB(100, 255, 140))
-    else
-        setStatus("Falha", Color3.fromRGB(255, 100, 100))
-    end
-end)
-
-print("[Zyro] v6 carregado!")
+print("[Zyro] v7 carregado! Toggles iOS ativos.")
