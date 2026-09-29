@@ -74,11 +74,12 @@ status.Parent = frame
 -- ============================================================
 -- SETUP
 -- ============================================================
-local EggState, networking, Assets, Mutations
+local EggState, networking, Assets, Mutations, AreaEggSlotIdentity
 pcall(function() EggState = require(ReplicatedStorage:WaitForChild("Client", 5):WaitForChild("EggState", 5)) end)
 pcall(function() networking = ReplicatedStorage:WaitForChild("Packages", 5):WaitForChild("Networking", 5) end)
 pcall(function() Assets = require(ReplicatedStorage:WaitForChild("Data", 5):WaitForChild("Assets", 5)) end)
 pcall(function() Mutations = require(ReplicatedStorage:WaitForChild("Shared", 5):WaitForChild("Modules", 5):WaitForChild("Mutations", 5)) end)
+pcall(function() AreaEggSlotIdentity = require(ReplicatedStorage:WaitForChild("Shared", 5):WaitForChild("Util", 5):WaitForChild("AreaEggSlotIdentity", 5)) end)
 
 -- ============================================================
 -- WAYPOINTS DO LENNON (exatos)
@@ -340,6 +341,16 @@ local function getBestEgg(excludeUid)
 end
 
 
+local function isFirstStageEgg(rec)
+    if type(rec) ~= "table" or not rec.Uid then return false end
+    if AreaEggSlotIdentity and type(AreaEggSlotIdentity.LooksLikeFirstAreaUid) == "function" then
+        local ok, result = pcall(AreaEggSlotIdentity.LooksLikeFirstAreaUid, rec.Uid)
+        if ok then return result == true end
+    end
+    local area = string.lower(tostring(rec.AreaId or rec.AreaName or rec.Area or ""))
+    return area:find("forest", 1, true) ~= nil
+end
+
 local function getForestEgg(excludeUid)
     local records
     if EggState and type(EggState.SyncFieldEggs) == "function" then
@@ -358,16 +369,15 @@ local function getForestEgg(excludeUid)
     local forest = WP[7].pos
     for _, rec in pairs(records) do
         if type(rec) == "table" and rec.Uid and tostring(rec.Uid) ~= tostring(excludeUid)
-            and rec.BottomCFrame and (rec.State == "Slot" or rec.State == "Dropped") then
-            local area = string.lower(tostring(rec.AreaId or rec.AreaName or rec.Area or ""))
+            and rec.BottomCFrame and (rec.State == "Slot" or rec.State == "Dropped")
+            and isFirstStageEgg(rec) then
             local pos = rec.BottomCFrame.Position
             local score = (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(forest.X, 0, forest.Z)).Magnitude
-            if area:find("forest", 1, true) then score -= 100000 end
             if rec.NestId ~= nil then score -= 1000 end
             if score < bestScore then best, bestScore = rec, score end
         end
     end
-    return best, best and "ok" or "sem ovo no Forest"
+    return best, best and "ok" or "nenhum ovo de primeiro estagio"
 end
 
 -- Movimento de retorno do Lennon: um único Tween por destino, não micro-teleportes.
@@ -396,7 +406,7 @@ local function tweenMove(pos, speed, lookAtTarget)
     return true, "ok"
 end
 
-local function carryEgg(uid, timeout)
+local function carryEgg(uid, timeout, record)
     timeout = tonumber(timeout) or 2.5
     if not uid or not networking then return false, "uid invalido" end
     local invoke = networking:FindFirstChild("RF/EggWorld/AskFieldEggCarry")
@@ -411,10 +421,15 @@ local function carryEgg(uid, timeout)
             end
         end)
     end
+    local slotKey
+    if record and AreaEggSlotIdentity and record.NestId
+        and type(AreaEggSlotIdentity.SlotKey) == "function" then
+        pcall(function() slotKey = AreaEggSlotIdentity.SlotKey(record.AreaId, record.NestId) end)
+    end
     local started = os.clock()
     local last = 0
     local source = "none"
-    while os.clock() - started < timeout and autoRunning ~= false do
+    while os.clock() - started < timeout do
         if confirmed then
             if connection then connection:Disconnect() end
             return true, "event"
@@ -422,15 +437,14 @@ local function carryEgg(uid, timeout)
         if os.clock() - last >= 0.05 then
             last = os.clock()
             if EggState and type(EggState.CarryFieldEgg) == "function" then
-                local ok, result = pcall(EggState.CarryFieldEgg, uid)
-                if ok and result ~= false then source = "EggState" end
+                local ok, result = pcall(EggState.CarryFieldEgg, uid, slotKey)
+                if ok and result ~= false then source = "EggState"; confirmed = true end
             end
             if invoke and invoke:IsA("RemoteFunction") then
-                local ok, result = pcall(invoke.InvokeServer, invoke, {Uid = uid})
-                if ok and result == true then
-                    confirmed = true
-                    source = "Remote"
-                end
+                local payload = {Uid = uid}
+                if slotKey ~= nil then payload.SlotKey = slotKey end
+                local ok, result = pcall(invoke.InvokeServer, invoke, payload)
+                if ok and result == true then confirmed = true; source = "Remote" end
             end
         end
         RunService.Heartbeat:Wait()
@@ -461,8 +475,8 @@ local function walkToDelivery()
         hum = char and char:FindFirstChildOfClass("Humanoid")
         root = char and char:FindFirstChild("HumanoidRootPart")
         if not hum or not root or hum.Health <= 0 then return false, "personagem morreu" end
-        hum:MoveTo(root.Position + Vector3.new(50, 0, 0))
-        task.wait(0.15)
+        pcall(function() hum:Move(Vector3.new(1, 0, 0), false) end)
+        RunService.Heartbeat:Wait()
     end
     pcall(function() hum:MoveTo(root.Position) end)
     return true, "ok"
@@ -492,7 +506,7 @@ local function runStealCycle(single)
     task.wait(0.25)
 
     setStatus("Instant Steal do ninho...", Color3.fromRGB(255, 200, 100))
-    local forestCarried, carryReason = carryEgg(forestEgg.Uid, 3)
+    local forestCarried, carryReason = carryEgg(forestEgg.Uid, 3, forestEgg)
     if not forestCarried then
         restoreDS()
         return false, "Forest carry: " .. tostring(carryReason)
@@ -506,7 +520,7 @@ local function runStealCycle(single)
     task.wait(0.15)
 
     setStatus("Instant Steal do melhor ovo...", Color3.fromRGB(255, 200, 100))
-    local bestCarried, bestCarryReason = carryEgg(bestEgg.Uid, 3)
+    local bestCarried, bestCarryReason = carryEgg(bestEgg.Uid, 3, bestEgg)
     if not bestCarried then
         restoreDS()
         return false, "melhor carry: " .. tostring(bestCarryReason)
