@@ -1,5 +1,5 @@
--- ZYRO AUTO STEAL v10 - só Auto Steal, voo baixo
-print("[Zyro] v10 iniciando...")
+-- ZYRO AUTO STEAL v11 - corrigido
+print("[Zyro] v11 iniciando...")
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -7,7 +7,9 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local lp = Players.LocalPlayer
 
+-- ============================================================
 -- UI
+-- ============================================================
 local parent = nil
 pcall(function() parent = game:GetService("CoreGui") end)
 if not parent then parent = lp:WaitForChild("PlayerGui") end
@@ -44,7 +46,6 @@ title.TextSize = 16
 title.Font = Enum.Font.GothamBold
 title.Parent = frame
 
--- Toggle iOS
 local function criarToggle(texto, y, corAtivo)
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, -70, 0, 30)
@@ -132,13 +133,53 @@ pcall(function() networking = ReplicatedStorage:WaitForChild("Packages", 5):Wait
 pcall(function() Assets = require(ReplicatedStorage:WaitForChild("Data", 5):WaitForChild("Assets", 5)) end)
 pcall(function() Mutations = require(ReplicatedStorage:WaitForChild("Shared", 5):WaitForChild("Modules", 5):WaitForChild("Mutations", 5)) end)
 
--- Waypoints
 local WP = {
     [4] = Vector3.new(767.54, 70.51, -327.81),
     [5] = Vector3.new(596.65, 70.52, -316.80),
     [6] = Vector3.new(573.61, 70.52, -327.54),
     [7] = Vector3.new(540.18, 70.52, -356.74),
 }
+
+-- ============================================================
+-- ESTADO GLOBAL (pra poder cancelar)
+-- ============================================================
+local autoRunning = false
+local tweenAtual = nil
+local voando = false
+local flyConnection = nil
+
+-- Desliga o controle de movimento do Roblox enquanto voa
+local function ligarVoo()
+    if voando then return end
+    voando = true
+    local char = lp.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        pcall(function()
+            hum.PlatformStand = true
+            hum:ChangeState(Enum.HumanoidStateType.Physics)
+        end)
+    end
+end
+
+local function desligarVoo()
+    if not voando then return end
+    voando = false
+    if flyConnection then
+        pcall(function() flyConnection:Disconnect() end)
+        flyConnection = nil
+    end
+    local char = lp.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        pcall(function()
+            hum.PlatformStand = false
+            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end)
+    end
+end
 
 -- ============================================================
 -- DESYNC
@@ -217,29 +258,24 @@ local function applyDS()
 end
 
 -- ============================================================
--- TP SEGMENTADO - VOO BAIXO (10 studs em vez de 40)
+-- TP SUAVE (sem subir, sem parar)
 -- ============================================================
-local function tpSegmentado(destino, maxSegmento)
-    maxSegmento = maxSegmento or 250
+local function tpSuave(destino, maxSegmento)
+    maxSegmento = maxSegmento or 300
     local char = lp.Character
     if not char then return false end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return false end
 
-    applyDS()
+    -- Voando = não deixa o Roblox brigar
+    ligarVoo()
     RunService.Heartbeat:Wait()
 
-    -- Sobe só 10 studs (era 40)
-    local startPos = hrp.Position
-    local highY = startPos.Y + 10
-    local upTween = TweenService:Create(hrp, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = CFrame.new(Vector3.new(startPos.X, highY, startPos.Z))})
-    upTween:Play()
-    upTween.Completed:Wait()
-    RunService.Heartbeat:Wait()
-
-    -- Voa em segmentos de 250 studs a 500 studs/s
     local seguranca = 0
     while seguranca < 60 do
+        if not autoRunning then
+            return false
+        end
         seguranca = seguranca + 1
         char = lp.Character
         if not char then break end
@@ -250,12 +286,14 @@ local function tpSegmentado(destino, maxSegmento)
         local vector = Vector3.new(destino.X - myPos.X, 0, destino.Z - myPos.Z)
         local dist = vector.Magnitude
 
+        -- Ponto final
         if dist < 5 then
-            -- Desce pro chão
             local groundPos = Vector3.new(destino.X, destino.Y, destino.Z)
-            local downTween = TweenService:Create(hrp, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {CFrame = CFrame.new(groundPos)})
+            local downTween = TweenService:Create(hrp, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {CFrame = CFrame.new(groundPos)})
+            tweenAtual = downTween
             downTween:Play()
             downTween.Completed:Wait()
+            tweenAtual = nil
             pcall(function()
                 hrp.CFrame = CFrame.new(groundPos)
                 hrp.AssemblyLinearVelocity = Vector3.zero
@@ -264,32 +302,38 @@ local function tpSegmentado(destino, maxSegmento)
             return true
         end
 
+        -- Vai direto (SEM SUBIR), com Y do destino + 2
         local step = math.min(dist, maxSegmento)
         local dir = vector.Unit
-        -- Voo BAIXO: só 10 studs acima do destino
         local nextPos = Vector3.new(
             myPos.X + dir.X * step,
-            destino.Y + 10,
+            destino.Y + 2,
             myPos.Z + dir.Z * step
         )
 
-        local duration = math.max(step / 500, 0.3)
+        -- Velocidade 700 (mais rápido que v10, menos que v8)
+        local duration = math.max(step / 700, 0.15)
         local targetCF = CFrame.new(nextPos)
         local tween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCF})
+        tweenAtual = tween
         tween:Play()
 
         local timedOut = false
         task.delay(5, function() timedOut = true end)
         while tween.PlaybackState == Enum.PlaybackState.Playing and not timedOut do
+            if not autoRunning then
+                pcall(function() tween:Cancel() end)
+                return false
+            end
             RunService.Heartbeat:Wait()
         end
+        tweenAtual = nil
 
         pcall(function()
             hrp.CFrame = targetCF
             hrp.AssemblyLinearVelocity = Vector3.zero
             hrp.AssemblyAngularVelocity = Vector3.zero
         end)
-        RunService.Heartbeat:Wait()
     end
     return false
 end
@@ -372,8 +416,6 @@ end
 -- ============================================================
 -- AUTO STEAL
 -- ============================================================
-local autoRunning = false
-
 _G._zyroCallbacks["Auto Steal"] = function(ativo)
     if ativo then
         if autoRunning then return end
@@ -389,12 +431,17 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
                     continue
                 end
 
-                -- 2) Voa pro ovo (voo baixo)
+                -- 2) Voa pro ovo (sem subida)
                 setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
                 local posOvo = egg.BottomCFrame.Position
-                tpSegmentado(posOvo, 250)
+                local ok = tpSuave(posOvo, 300)
                 if not autoRunning then break end
-                task.wait(0.5)
+                if not ok then
+                    setStatus("Falha no voo", Color3.fromRGB(255, 100, 100))
+                    task.wait(0.5)
+                    continue
+                end
+                task.wait(0.4)
 
                 -- 3) Pega o ovo
                 setStatus("Pegando ovo...", Color3.fromRGB(255, 200, 100))
@@ -415,41 +462,53 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
                 setStatus("Ovo na mao!", Color3.fromRGB(100, 255, 140))
                 task.wait(0.5)
 
-                -- 4) Volta voando baixo
-                setStatus("Voando p/ WP4...", Color3.fromRGB(100, 200, 255))
-                tpSegmentado(WP[4], 250)
-                if not autoRunning then break end
-
-                setStatus("Voando p/ WP5...", Color3.fromRGB(100, 200, 255))
-                tpSegmentado(WP[5], 250)
-                if not autoRunning then break end
-
-                setStatus("Voando p/ WP6...", Color3.fromRGB(100, 200, 255))
-                tpSegmentado(WP[6], 250)
-                if not autoRunning then break end
-
-                setStatus("Voando p/ WP7 (Forest)...", Color3.fromRGB(100, 200, 255))
-                tpSegmentado(WP[7], 250)
-                if not autoRunning then break end
-
-                -- 5) Cruza safe zone
-                setStatus("Cruzando safe zone...", Color3.fromRGB(100, 255, 140))
+                -- 4) Volta voando (SEM parar entre waypoints)
+                -- Faz tudo em uma só chamada (vai direto pra safe zone)
+                setStatus("Voltando...", Color3.fromRGB(100, 200, 255))
                 local char = lp.Character
                 local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 if hrp then
-                    local safeZone = hrp.Position + Vector3.new(60, 0, 0)
-                    tpSegmentado(safeZone, 200)
+                    -- Vai em uma única passada pelos waypoints (sem subir/descer entre eles)
+                    for i, wpIdx in ipairs({4, 5, 6, 7}) do
+                        if not autoRunning then break end
+                        setStatus("Passando WP" .. wpIdx .. "...", Color3.fromRGB(100, 200, 255))
+                        local wp = WP[wpIdx]
+                        -- tpSuave mas sem parar (sem descer)
+                        tpSuave(wp, 300)
+                    end
+                    -- Cruza safe zone
+                    if autoRunning then
+                        setStatus("Cruzando safe zone...", Color3.fromRGB(100, 255, 140))
+                        char = lp.Character
+                        hrp = char and char:FindFirstChild("HumanoidRootPart")
+                        if hrp then
+                            tpSuave(hrp.Position + Vector3.new(80, 0, 0), 250)
+                        end
+                    end
                 end
 
                 setStatus("Ciclo ok! Reiniciando...", Color3.fromRGB(100, 255, 140))
                 task.wait(0.5)
             end
+            -- sai do loop, desliga voo
+            desligarVoo()
+            restoreDS()
         end)
     else
+        -- PAROU: para o loop e limpa
         autoRunning = false
-        setStatus("Auto Steal parado", Color3.fromRGB(255, 200, 100))
+        setStatus("Parando...", Color3.fromRGB(255, 200, 100))
+        -- Cancela tween atual
+        if tweenAtual then
+            pcall(function() tweenAtual:Cancel() end)
+            tweenAtual = nil
+        end
+        -- Espera o loop terminar
+        task.wait(0.3)
+        desligarVoo()
         restoreDS()
+        setStatus("Auto Steal parado", Color3.fromRGB(255, 200, 100))
     end
 end
 
-print("[Zyro] v10 carregado! Voando baixo (10 studs)")
+print("[Zyro] v11 carregado! Sem subida, sem parar entre waypoints, sem bug ao desativar")
