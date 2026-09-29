@@ -1,5 +1,5 @@
--- ZYRO AUTO STEAL v16 - mesma altura ida/volta, volta direto sem parar
-print("[Zyro] v16 iniciando...")
+-- ZYRO AUTO STEAL v17 - direto, mesma vel, sem parar
+print("[Zyro] v17 iniciando...")
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -133,11 +133,13 @@ pcall(function() networking = ReplicatedStorage:WaitForChild("Packages", 5):Wait
 pcall(function() Assets = require(ReplicatedStorage:WaitForChild("Data", 5):WaitForChild("Assets", 5)) end)
 pcall(function() Mutations = require(ReplicatedStorage:WaitForChild("Shared", 5):WaitForChild("Modules", 5):WaitForChild("Mutations", 5)) end)
 
--- SAFE ZONE
-local SAFE_ZONE_POS = Vector3.new(610, 70.5, -364)
+-- SAFE ZONE (X bem alto, longe de Forest)
+local SAFE_ZONE_POS = Vector3.new(700, 70.5, -364)
 
--- ALTURA DO VOO (mesma ida e volta)
-local VOO_ALTO = 25  -- 25 studs acima do chão
+-- Config
+local VOO_ALTO = 25
+local VELOCIDADE = 400
+local SEGMENTO = 200
 
 -- ============================================================
 -- ESTADO
@@ -222,13 +224,9 @@ local function applyDS()
 end
 
 -- ============================================================
--- TP (voo alto, mesma altura ida/volta)
+-- TP SEM PARAR (vai direto pro destino)
 -- ============================================================
-local function tpCustom(destino, maxSegmento, velocidade, pausa)
-    maxSegmento = maxSegmento or 250
-    velocidade = velocidade or 400
-    pausa = pausa or 0.1
-    
+local function tpDireto(destino)
     local char = lp.Character
     if not char then return false end
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -238,7 +236,7 @@ local function tpCustom(destino, maxSegmento, velocidade, pausa)
     RunService.Heartbeat:Wait()
 
     local seguranca = 0
-    while seguranca < 100 do
+    while seguranca < 150 do
         if not autoRunning then return false end
         seguranca = seguranca + 1
         char = lp.Character
@@ -250,7 +248,7 @@ local function tpCustom(destino, maxSegmento, velocidade, pausa)
         local vector = Vector3.new(destino.X - myPos.X, 0, destino.Z - myPos.Z)
         local dist = vector.Magnitude
 
-        -- Chegou
+        -- Só desce no FINAL (dist < 5)
         if dist < 5 then
             local groundPos = Vector3.new(destino.X, destino.Y, destino.Z)
             local downTween = TweenService:Create(hrp, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {CFrame = CFrame.new(groundPos)})
@@ -266,16 +264,16 @@ local function tpCustom(destino, maxSegmento, velocidade, pausa)
             return true
         end
 
-        local step = math.min(dist, maxSegmento)
+        -- Vai DIRETO pro destino (SEM parar, SEM descer)
+        local step = math.min(dist, SEGMENTO)
         local dir = vector.Unit
-        -- VOO ALTO: mesma altura sempre
         local nextPos = Vector3.new(
             myPos.X + dir.X * step,
             destino.Y + VOO_ALTO,
             myPos.Z + dir.Z * step
         )
 
-        local duration = math.max(step / velocidade, 0.15)
+        local duration = math.max(step / VELOCIDADE, 0.15)
         local targetCF = CFrame.new(nextPos)
         local tween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCF})
         tweenAtual = tween
@@ -302,10 +300,7 @@ local function tpCustom(destino, maxSegmento, velocidade, pausa)
             hrp.AssemblyLinearVelocity = Vector3.zero
             hrp.AssemblyAngularVelocity = Vector3.zero
         end)
-
-        if pausa > 0 then
-            task.wait(pausa)
-        end
+        -- SEM pausa! Vai direto pro próximo segmento
     end
     return false
 end
@@ -403,10 +398,9 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
                     continue
                 end
 
-                -- 2) IR pro ovo (devagar, voo alto 25)
+                -- 2) IR pro ovo (tpDireto, mesma velocidade, voo alto)
                 setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
-                local posOvo = egg.BottomCFrame.Position
-                local ok = tpCustom(posOvo, 200, 400, 0.1)
+                local ok = tpDireto(egg.BottomCFrame.Position)
                 if not autoRunning then break end
                 if not ok then
                     setStatus("Falha no voo", Color3.fromRGB(255, 100, 100))
@@ -434,16 +428,16 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
                 setStatus("Ovo na mao!", Color3.fromRGB(100, 255, 140))
                 task.wait(0.2)
 
-                -- 4) DIRETO PRA SAFE ZONE (voo alto 25, velocidade 600, SEM pausa, SEM parar)
+                -- 4) DIRETO PRA SAFE ZONE (tpDireto, mesma velocidade, voo alto, SEM PARAR)
                 setStatus("Direto pra safe zone...", Color3.fromRGB(100, 255, 140))
-                tpCustom(SAFE_ZONE_POS, 350, 600, 0)
+                tpDireto(SAFE_ZONE_POS)
                 if not autoRunning then break end
 
                 -- 5) Confirma entrega
                 setStatus("Entregando...", Color3.fromRGB(100, 255, 140))
                 task.wait(0.8)
 
-                -- Se ainda tiver o ovo, voa mais 50 studs
+                -- Se ainda tiver, voa mais 100
                 local stillCarrying = false
                 if EggState and type(EggState.ReadOwnerEggs) == "function" then
                     local ok2, r2 = pcall(EggState.ReadOwnerEggs, lp.UserId)
@@ -458,11 +452,11 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
                 end
 
                 if stillCarrying then
-                    setStatus("Ainda com ovo, mais 50...", Color3.fromRGB(255, 200, 100))
+                    setStatus("Mais 100...", Color3.fromRGB(255, 200, 100))
                     local char = lp.Character
                     local hrp = char and char:FindFirstChild("HumanoidRootPart")
                     if hrp then
-                        tpCustom(hrp.Position + Vector3.new(50, 0, 0), 350, 600, 0)
+                        tpDireto(hrp.Position + Vector3.new(100, 0, 0))
                     end
                     task.wait(0.5)
                 end
@@ -485,4 +479,4 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
     end
 end
 
-print("[Zyro] v16 carregado! Mesma altura ida/volta, direto pra safe")
+print("[Zyro] v17 carregado! Direto pra safe, mesma velocidade")
