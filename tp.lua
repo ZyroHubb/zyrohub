@@ -1,5 +1,6 @@
--- ZYRO TP - 3 botões
+-- ZYRO TP - Método REAL do Chilli (Humanoid Swap + TP)
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local lp = Players.LocalPlayer
@@ -9,30 +10,122 @@ pcall(function()
     EggState = require(ReplicatedStorage.Client.EggState)
 end)
 
-local function teleportar(pos)
-    if not pos then return false end
+-- ============================================================
+-- HUMAN SWAP (a chave do TP do Chilli)
+-- ============================================================
+local swapState = {Original = nil, Clone = nil, Links = {}}
+
+local function undoSwap()
+    for _, link in ipairs(swapState.Links) do
+        pcall(function() link:Disconnect() end)
+    end
+    table.clear(swapState.Links)
+
     local char = lp.Character
-    if not char then return false end
+    local orig = swapState.Original
+    local clone = swapState.Clone
+    swapState.Original = nil
+    swapState.Clone = nil
+
+    if orig and clone and char and orig.Parent == nil and clone.Parent == char then
+        orig.Parent = char
+        workspace.CurrentCamera.CameraSubject = orig
+        pcall(function() clone:Destroy() end)
+    end
+end
+
+local function isGrounded(humanoid)
+    if not humanoid or humanoid.Health <= 0 or humanoid.FloorMaterial == Enum.Material.Air then
+        return false
+    end
+    local state = humanoid:GetState()
+    return state == Enum.HumanoidStateType.Running
+        or state == Enum.HumanoidStateType.RunningNoPhysics
+        or state == Enum.HumanoidStateType.Landed
+end
+
+local function doSwap()
+    local char = lp.Character
+    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.Health <= 0 then return false end
+    if swapState.Clone and swapState.Clone.Parent == char then return true end
+    if not isGrounded(humanoid) then return false end
+
+    local clone = humanoid:Clone()
+    humanoid.Parent = nil
+    clone.Parent = char
+    workspace.CurrentCamera.CameraSubject = clone
+
+    swapState.Original = humanoid
+    swapState.Clone = clone
+
+    table.insert(swapState.Links, humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if clone.Parent ~= nil then clone.WalkSpeed = humanoid.WalkSpeed end
+    end))
+
+    table.insert(swapState.Links, clone.Died:Connect(function()
+        undoSwap()
+        local char2 = lp.Character
+        if char2 and humanoid.Parent == nil then
+            humanoid.Parent = char2
+            workspace.CurrentCamera.CameraSubject = humanoid
+        end
+        pcall(function() clone:Destroy() end)
+        humanoid.Health = 0
+    end))
+
+    return true
+end
+
+-- ============================================================
+-- TP com método do Chilli
+-- ============================================================
+local function teleportar(pos)
+    if not pos then return false, "pos nil" end
+    local char = lp.Character
+    if not char then return false, "no char" end
     local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return false end
+    if not root then return false, "no root" end
+
+    -- 1) Ativa humanoid swap (tira o monitor do humanoid original)
+    doSwap()
+
+    -- 2) Espera um tick pro swap aplicar
+    RunService.Heartbeat:Wait()
+
+    -- 3) Pega o root de novo (pode ter mudado com o swap)
+    root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return false, "no root after swap" end
+
+    -- 4) TP mantendo a rotação (igual Chilli faz)
+    local rotation = root.CFrame.Rotation
+    local targetCFrame = CFrame.new(pos + Vector3.new(0, 3, 0)) * rotation
+
     pcall(function()
-        char:PivotTo(CFrame.new(pos + Vector3.new(0, 3, 0)))
+        char:PivotTo(targetCFrame)
     end)
     pcall(function()
-        root.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
+        root.CFrame = targetCFrame
         root.AssemblyLinearVelocity = Vector3.zero
         root.AssemblyAngularVelocity = Vector3.zero
     end)
-    return true
+
+    -- 5) Espera um tick pra garantir
+    RunService.Heartbeat:Wait()
+
+    -- 6) Desativa swap (volta humanoid original)
+    undoSwap()
+
+    return true, "ok"
 end
 
 local function getBestEgg()
     if type(EggState) ~= "table" or type(EggState.ReadFieldEggs) ~= "function" then
-        return nil
+        return nil, "EggState sem ReadFieldEggs"
     end
     local ok, result = pcall(EggState.ReadFieldEggs)
     if not ok or type(result) ~= "table" or type(result.Records) ~= "table" then
-        return nil
+        return nil, "ReadFieldEggs falhou"
     end
     local melhor = nil
     local melhorValor = -1
@@ -57,10 +150,13 @@ local function getBestEgg()
             end
         end
     end
-    return melhor
+    if not melhor then return nil, "Nenhum ovo no campo" end
+    return melhor, "ok"
 end
 
--- Home / Safe Zone
+-- ============================================================
+-- Home / Safe Zone (mesmo método do Chilli)
+-- ============================================================
 local function getSeparationLine()
     local world = workspace:FindFirstChild("World") or workspace:FindFirstChild("__OBJECTS")
     world = world and world:FindFirstChild("Areas")
@@ -70,24 +166,29 @@ end
 local function getSafeZonePos()
     local line = getSeparationLine()
     if not line or not line:IsA("BasePart") then
-        return nil
+        return nil, "SeparationLine não encontrada"
     end
-    return Vector3.new(line.Position.X - 7, line.Position.Y + 3, line.Position.Z)
+    -- Chilli usa: X do line - 7 (lado de fora)
+    -- E mantém Y próximo do line
+    local targetX = line.Position.X - 7
+    local targetY = line.Position.Y + 3
+    local targetZ = line.Position.Z
+    return Vector3.new(targetX, targetY, targetZ), "ok"
 end
 
 local function getOwnPlot()
     local plots = workspace:FindFirstChild("Plots")
     if not plots then return nil end
-    local nomePlayer = string.lower(lp.Name)
-    local nomeDisplay = string.lower(lp.DisplayName)
+    local nome = string.lower(lp.Name)
+    local disp = string.lower(lp.DisplayName)
     for _, plot in ipairs(plots:GetChildren()) do
-        local plotSign = plot:FindFirstChild("PlotSign")
-        plotSign = plotSign and plotSign:FindFirstChild("PlayerPlotSign")
-        plotSign = plotSign and plotSign:FindFirstChild("Frame")
-        local playerName = plotSign and plotSign:FindFirstChild("PlayerName")
-        if playerName and playerName:IsA("TextLabel") then
-            local texto = string.lower(playerName.Text)
-            if texto == nomePlayer or texto == nomeDisplay then
+        local sign = plot:FindFirstChild("PlotSign")
+        sign = sign and sign:FindFirstChild("PlayerPlotSign")
+        sign = sign and sign:FindFirstChild("Frame")
+        local pl = sign and sign:FindFirstChild("PlayerName")
+        if pl and pl:IsA("TextLabel") then
+            local t = string.lower(pl.Text)
+            if t == nome or t == disp then
                 return plot
             end
         end
@@ -97,11 +198,10 @@ end
 
 local function getPlotPos()
     local plot = getOwnPlot()
-    if not plot then return nil end
-    local ok, result = pcall(function()
-        return plot:GetPivot().Position
-    end)
-    return ok and result or nil
+    if not plot then return nil, "plot não achado" end
+    local ok, result = pcall(function() return plot:GetPivot().Position end)
+    if not ok then return nil, "GetPivot falhou" end
+    return result, "ok"
 end
 
 -- ============================================================
@@ -175,18 +275,19 @@ status.Parent = frame
 btnSteal.MouseButton1Click:Connect(function()
     status.Text = "Procurando ovo..."
     status.TextColor3 = Color3.fromRGB(255, 200, 100)
-    local egg = getBestEgg()
+    local egg, err = getBestEgg()
     if not egg then
-        status.Text = "Nenhum ovo encontrado"
+        status.Text = "Erro: ".. tostring(err)
         status.TextColor3 = Color3.fromRGB(255, 100, 100)
         return
     end
-    local ok = teleportar(egg.BottomCFrame.Position)
+    local pos = egg.BottomCFrame.Position
+    local ok, msg = teleportar(pos)
     if ok then
         status.Text = "TP OK: ".. tostring(egg.AssetCategory)
         status.TextColor3 = Color3.fromRGB(100, 255, 140)
     else
-        status.Text = "Falha"
+        status.Text = "Falha: ".. tostring(msg)
         status.TextColor3 = Color3.fromRGB(255, 100, 100)
     end
 end)
@@ -194,18 +295,18 @@ end)
 btnSafe.MouseButton1Click:Connect(function()
     status.Text = "Indo pra safe zone..."
     status.TextColor3 = Color3.fromRGB(100, 200, 255)
-    local pos = getSafeZonePos()
+    local pos, err = getSafeZonePos()
     if not pos then
-        status.Text = "Safe zone nao encontrada"
+        status.Text = "Erro: ".. tostring(err)
         status.TextColor3 = Color3.fromRGB(255, 100, 100)
         return
     end
-    local ok = teleportar(pos)
+    local ok, msg = teleportar(pos)
     if ok then
         status.Text = "TP Safe Zone OK"
         status.TextColor3 = Color3.fromRGB(100, 255, 140)
     else
-        status.Text = "Falha"
+        status.Text = "Falha: ".. tostring(msg)
         status.TextColor3 = Color3.fromRGB(255, 100, 100)
     end
 end)
@@ -213,20 +314,20 @@ end)
 btnHome.MouseButton1Click:Connect(function()
     status.Text = "Procurando plot..."
     status.TextColor3 = Color3.fromRGB(100, 200, 255)
-    local pos = getPlotPos()
+    local pos, err = getPlotPos()
     if not pos then
-        status.Text = "Plot nao encontrado - use Safe Zone"
-        status.TextColor3 = Color3.fromRGB(255, 200, 100)
+        status.Text = "Erro: ".. tostring(err)
+        status.TextColor3 = Color3.fromRGB(255, 100, 100)
         return
     end
-    local ok = teleportar(pos)
+    local ok, msg = teleportar(pos)
     if ok then
         status.Text = "TP Home OK"
         status.TextColor3 = Color3.fromRGB(100, 255, 140)
     else
-        status.Text = "Falha"
+        status.Text = "Falha: ".. tostring(msg)
         status.TextColor3 = Color3.fromRGB(255, 100, 100)
     end
 end)
 
-print("[Zyro TP] 3 botoes carregados!")
+print("[Zyro TP] Carregado com HUMAN SWAP!")
