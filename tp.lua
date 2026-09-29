@@ -1,5 +1,5 @@
--- ZYRO AUTO STEAL - ciclo completo
-print("[Zyro] Auto Steal v5 iniciando...")
+-- ZYRO AUTO STEAL v6 - com waypoints do Lennon + anti-anti-cheat
+print("[Zyro] v6 iniciando...")
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -82,6 +82,19 @@ pcall(function() Assets = require(ReplicatedStorage:WaitForChild("Data", 5):Wait
 pcall(function() Mutations = require(ReplicatedStorage:WaitForChild("Shared", 5):WaitForChild("Modules", 5):WaitForChild("Mutations", 5)) end)
 
 -- ============================================================
+-- WAYPOINTS DO LENNON (exatos)
+-- ============================================================
+local WP = {
+    {name="WP1", pos=Vector3.new(3340.17, 70.52, -331.08), speed=4000},
+    {name="WP2", pos=Vector3.new(2894.71, 75.64, -327.45), speed=4000},
+    {name="WP3", pos=Vector3.new(1923.22, 75.64, -330.11), speed=4000},
+    {name="WP4", pos=Vector3.new(767.54, 70.51, -327.81), speed=4000},
+    {name="WP5", pos=Vector3.new(596.65, 70.52, -316.80), speed=1000},
+    {name="WP6", pos=Vector3.new(573.61, 70.52, -327.54), speed=1000},
+    {name="WP7", pos=Vector3.new(540.18, 70.52, -356.74), speed=1000},
+}
+
+-- ============================================================
 -- DESYNC
 -- ============================================================
 local ds = {real=nil, fake=nil, char=nil, active=false}
@@ -157,9 +170,9 @@ local function applyDS()
     return true
 end
 
--- TP voando (com desync)
-local function flyTo(pos, speed, offsetStuds, lookAtTarget)
-    speed = speed or 3000
+-- TP com tween - SEMPRE LENTO (anti-anti-cheat)
+local function tpSlow(pos, speed, offsetStuds, lookAtTarget)
+    speed = speed or 500  -- PADRAO LENTO
     offsetStuds = offsetStuds or 0
     if not pos then return false, "pos nil" end
     local char = lp.Character
@@ -192,13 +205,19 @@ local function flyTo(pos, speed, offsetStuds, lookAtTarget)
     end)
 
     local dist = (dest - hrp.Position).Magnitude
-    local duration = math.max(dist / speed, 0.01)
+    local duration = math.max(dist / speed, 0.05)
     local targetCF = CFrame.new(dest)
     if lookDir then targetCF = CFrame.lookAt(dest, dest + lookDir) end
 
+    -- Tween com timeout de 10s
     local tween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCF})
     tween:Play()
-    tween.Completed:Wait()
+
+    local timedOut = false
+    task.delay(10, function() timedOut = true end)
+    while tween.PlaybackState == Enum.PlaybackState.Playing and not timedOut do
+        RunService.Heartbeat:Wait()
+    end
 
     pcall(function()
         hrp.CFrame = targetCF
@@ -266,16 +285,11 @@ local function getBestEgg()
     return nil, "sem ovos"
 end
 
--- ============================================================
--- CARRY EGG
--- ============================================================
 local function carryEgg(uid)
-    -- Tenta EggState.CarryFieldEgg (mais direto)
     if EggState and type(EggState.CarryFieldEgg) == "function" then
         local ok, r = pcall(EggState.CarryFieldEgg, uid)
         if ok and r ~= false then return true, "EggState" end
     end
-    -- Tenta o remote
     if networking then
         local rf = networking:FindFirstChild("RF/EggWorld/AskFieldEggCarry")
         if rf then
@@ -289,15 +303,7 @@ local function carryEgg(uid)
 end
 
 -- ============================================================
--- POSICOES
--- ============================================================
--- Forest fica entre o campo e a safe zone
-local FOREST_POS = Vector3.new(600, 70.5, -360)
--- Safe zone fica depois do SeparationLine (X > linha)
-local SAFE_ZONE_POS = Vector3.new(650, 70.5, -360)
-
--- ============================================================
--- AUTO STEAL (ciclo completo)
+-- AUTO STEAL (ciclo completo com anti-anti-cheat)
 -- ============================================================
 local autoRunning = false
 local function setStatus(txt, color)
@@ -326,26 +332,27 @@ btnAuto.MouseButton1Click:Connect(function()
                 continue
             end
 
-            -- 2) TP voando pro ovo
+            -- 2) TP voando pro ovo (LENTO + offset 3)
             setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
-            local ok = flyTo(egg.BottomCFrame.Position, 3000, 0, true)
+            local ok = tpSlow(egg.BottomCFrame.Position, 800, 3, true)
             if not ok then
                 setStatus("TP egg falhou", Color3.fromRGB(255, 100, 100))
                 task.wait(1)
                 continue
             end
-            task.wait(0.2)
+            task.wait(0.3)
 
-            -- 3) Pega o ovo
+            -- 3) Pega o ovo (spam igual Lennon)
             setStatus("Pegando ovo...", Color3.fromRGB(255, 200, 100))
             local carried = false
-            for i = 1, 10 do
-                local cok, cmsg = carryEgg(egg.Uid)
+            for i = 1, 20 do
+                if not autoRunning then break end
+                local cok = carryEgg(egg.Uid)
                 if cok then
                     carried = true
                     break
                 end
-                task.wait(0.15)
+                task.wait(0.05)
             end
             if not carried then
                 setStatus("Nao consegui pegar", Color3.fromRGB(255, 100, 100))
@@ -353,10 +360,25 @@ btnAuto.MouseButton1Click:Connect(function()
                 task.wait(1)
                 continue
             end
+            setStatus("Ovo na mão, voltando...", Color3.fromRGB(100, 255, 140))
 
-            -- 4) TP pra Forest
-            setStatus("TP pra Forest...", Color3.fromRGB(100, 200, 255))
-            flyTo(FOREST_POS, 3000, 0)
+            -- 4) Volta pelos waypoints (LENTO)
+            restoreDS()  -- devolve humanoid real pra andar
+            task.wait(0.2)
+
+            -- WP5 (safe zone mais próxima)
+            setStatus("Voltando WP5...", Color3.fromRGB(100, 200, 255))
+            tpSlow(WP[5].pos, 1000, 0)
+            task.wait(0.2)
+
+            -- WP6
+            setStatus("Voltando WP6...", Color3.fromRGB(100, 200, 255))
+            tpSlow(WP[6].pos, 1000, 0)
+            task.wait(0.2)
+
+            -- WP7 (Forest)
+            setStatus("Voltando WP7...", Color3.fromRGB(100, 200, 255))
+            tpSlow(WP[7].pos, 1000, 0)
             task.wait(0.2)
 
             -- 5) Anda até safe zone (com humanoid real)
@@ -364,32 +386,28 @@ btnAuto.MouseButton1Click:Connect(function()
             task.wait(0.1)
             setStatus("Andando ate safe zone...", Color3.fromRGB(100, 255, 140))
             local char = lp.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
             local hum = char and char:FindFirstChildOfClass("Humanoid")
-            if hrp and hum then
-                local target = SAFE_ZONE_POS
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hum and hrp then
                 local start = tick()
-                while autoRunning and tick() - start < 8 do
+                while autoRunning and tick() - start < 10 do
                     local curHrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
                     if not curHrp then break end
-                    local dist = (Vector3.new(target.X, curHrp.Position.Y, target.Z) - curHrp.Position).Magnitude
-                    if dist < 4 then break end
-                    local dir = (Vector3.new(target.X, curHrp.Position.Y, target.Z) - curHrp.Position).Unit
-                    hum:MoveTo(curHrp.Position + dir * 20)
-                    task.wait(0.1)
+                    -- Anda pra FRENTE (X+)
+                    local target = curHrp.Position + Vector3.new(50, 0, 0)
+                    hum:MoveTo(target)
+                    task.wait(0.15)
                 end
                 pcall(function() hum:MoveTo(hrp.Position) end)
             end
-            task.wait(0.5)
+            task.wait(1)
             setStatus("Ciclo concluido, reiniciando...", Color3.fromRGB(100, 255, 140))
             task.wait(0.3)
         end
     end)
 end)
 
--- ============================================================
--- TP pro melhor ovo (só teleporta)
--- ============================================================
+-- TP pro melhor ovo (só teleporta, LENTO)
 btnSteal.MouseButton1Click:Connect(function()
     setStatus("Procurando ovo...", Color3.fromRGB(255, 200, 100))
     local egg, err = getBestEgg()
@@ -398,23 +416,21 @@ btnSteal.MouseButton1Click:Connect(function()
         return
     end
     setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
-    local ok = flyTo(egg.BottomCFrame.Position, 3000, 0, true)
+    local ok = tpSlow(egg.BottomCFrame.Position, 800, 3, true)
+    task.wait(0.3)
+    restoreDS()
     if ok then
         setStatus("OK: " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 255, 140))
     else
-        setStatus("Falha no TP", Color3.fromRGB(255, 100, 100))
+        setStatus("Falha", Color3.fromRGB(255, 100, 100))
     end
-    task.wait(0.1)
-    restoreDS()
 end)
 
--- ============================================================
--- TP pra Forest
--- ============================================================
+-- TP pra Forest (via WP7)
 btnHome.MouseButton1Click:Connect(function()
     setStatus("TP pra Forest...", Color3.fromRGB(100, 200, 255))
-    local ok = flyTo(FOREST_POS, 3000, 0)
-    task.wait(0.1)
+    local ok = tpSlow(WP[7].pos, 1000, 0)
+    task.wait(0.3)
     restoreDS()
     if ok then
         setStatus("Forest OK", Color3.fromRGB(100, 255, 140))
@@ -423,4 +439,4 @@ btnHome.MouseButton1Click:Connect(function()
     end
 end)
 
-print("[Zyro] Auto Steal v5 carregado!")
+print("[Zyro] v6 carregado!")
