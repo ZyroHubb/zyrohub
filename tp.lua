@@ -1,5 +1,5 @@
--- ZYRO TP v4 - com offset (3 studs antes) e waypoints do Lennon
-print("[Zyro] v4 iniciando...")
+-- ZYRO AUTO STEAL - ciclo completo
+print("[Zyro] Auto Steal v5 iniciando...")
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -7,10 +7,10 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local lp = Players.LocalPlayer
 
+-- UI
 local parent = nil
 pcall(function() parent = game:GetService("CoreGui") end)
 if not parent then parent = lp:WaitForChild("PlayerGui") end
-
 pcall(function()
     local old = parent:FindFirstChild("ZyroTP")
     if old then old:Destroy() end
@@ -23,7 +23,7 @@ pcall(function() sg.Parent = parent end)
 if not sg.Parent then warn("[Zyro] sem ScreenGui"); return end
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.fromOffset(240, 140)
+frame.Size = UDim2.fromOffset(240, 180)
 frame.Position = UDim2.new(0, 20, 0, 100)
 frame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
 frame.BorderSizePixel = 0
@@ -46,20 +46,21 @@ title.Parent = frame
 
 local function btn(texto, y, cor)
     local b = Instance.new("TextButton")
-    b.Size = UDim2.new(0.9, 0, 0, 40)
+    b.Size = UDim2.new(0.9, 0, 0, 36)
     b.Position = UDim2.new(0.05, 0, 0, y)
     b.BackgroundColor3 = cor
     b.Text = texto
     b.TextColor3 = Color3.new(1,1,1)
-    b.TextSize = 13
+    b.TextSize = 12
     b.Font = Enum.Font.GothamBold
     b.Parent = frame
     Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
     return b
 end
 
-local btnSteal = btn("TP STEAL BEST EGG", 38, Color3.fromRGB(180, 40, 40))
-local btnHome = btn("TP HOME", 84, Color3.fromRGB(40, 80, 180))
+local btnAuto = btn("AUTO STEAL (ciclo)", 38, Color3.fromRGB(180, 40, 40))
+local btnSteal = btn("TP pro melhor ovo", 78, Color3.fromRGB(140, 60, 40))
+local btnHome = btn("TP pra Forest", 118, Color3.fromRGB(40, 80, 180))
 
 local status = Instance.new("TextLabel")
 status.Size = UDim2.new(1, 0, 0, 20)
@@ -67,7 +68,7 @@ status.Position = UDim2.new(0, 0, 1, -22)
 status.BackgroundTransparency = 1
 status.Text = "PRONTO"
 status.TextColor3 = Color3.fromRGB(100, 255, 140)
-status.TextSize = 11
+status.TextSize = 10
 status.Font = Enum.Font.Gotham
 status.Parent = frame
 
@@ -156,9 +157,9 @@ local function applyDS()
     return true
 end
 
--- TP com offset (para 3 studs antes do destino, olhando pra ele)
-local function desyncTP(pos, speed, offsetStuds)
-    speed = speed or 5000
+-- TP voando (com desync)
+local function flyTo(pos, speed, offsetStuds, lookAtTarget)
+    speed = speed or 3000
     offsetStuds = offsetStuds or 0
     if not pos then return false, "pos nil" end
     local char = lp.Character
@@ -172,7 +173,6 @@ local function desyncTP(pos, speed, offsetStuds)
     hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then restoreDS(); return false, "HRP sumiu" end
 
-    -- Offset: para N studs antes, olhando pro alvo
     local dest = pos
     local lookDir = nil
     if offsetStuds > 0 then
@@ -181,6 +181,9 @@ local function desyncTP(pos, speed, offsetStuds)
             dest = pos - dir.Unit * offsetStuds
             lookDir = dir.Unit
         end
+    elseif lookAtTarget then
+        local dir = Vector3.new(pos.X - hrp.Position.X, 0, pos.Z - hrp.Position.Z)
+        if dir.Magnitude > 0.01 then lookDir = dir.Unit end
     end
 
     pcall(function()
@@ -191,9 +194,7 @@ local function desyncTP(pos, speed, offsetStuds)
     local dist = (dest - hrp.Position).Magnitude
     local duration = math.max(dist / speed, 0.01)
     local targetCF = CFrame.new(dest)
-    if lookDir then
-        targetCF = CFrame.lookAt(dest, dest + lookDir)
-    end
+    if lookDir then targetCF = CFrame.lookAt(dest, dest + lookDir) end
 
     local tween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCF})
     tween:Play()
@@ -204,20 +205,6 @@ local function desyncTP(pos, speed, offsetStuds)
         hrp.AssemblyLinearVelocity = Vector3.zero
         hrp.AssemblyAngularVelocity = Vector3.zero
     end)
-
-    RunService.Heartbeat:Wait()
-    restoreDS()
-    return true, "ok"
-end
-
--- TP sequencial (multi waypoints) - igual Lennon faz
-local function desyncTPWaypoints(waypoints, speed)
-    speed = speed or 5000
-    for i, wp in ipairs(waypoints) do
-        local ok, msg = desyncTP(wp.pos, wp.speed or speed, wp.offset or 0)
-        if not ok then return false, "wp" .. i .. ": " .. tostring(msg) end
-        RunService.Heartbeat:Wait()
-    end
     return true, "ok"
 end
 
@@ -279,61 +266,161 @@ local function getBestEgg()
     return nil, "sem ovos"
 end
 
--- Waypoints do Lennon pro HOME (ele usa 3: WP5 -> WP6 -> WP7)
-local HOME_WAYPOINTS = {
-    {pos = Vector3.new(596.65, 70.52, -316.80), speed = 1000},  -- WP5
-    {pos = Vector3.new(573.61, 70.52, -327.54), speed = 1000},  -- WP6
-    {pos = Vector3.new(540.18, 70.52, -356.74), speed = 1000},  -- WP7
-}
+-- ============================================================
+-- CARRY EGG
+-- ============================================================
+local function carryEgg(uid)
+    -- Tenta EggState.CarryFieldEgg (mais direto)
+    if EggState and type(EggState.CarryFieldEgg) == "function" then
+        local ok, r = pcall(EggState.CarryFieldEgg, uid)
+        if ok and r ~= false then return true, "EggState" end
+    end
+    -- Tenta o remote
+    if networking then
+        local rf = networking:FindFirstChild("RF/EggWorld/AskFieldEggCarry")
+        if rf then
+            local ok, r = pcall(function()
+                return rf:InvokeServer({Uid = uid})
+            end)
+            if ok and r == true then return true, "Remote" end
+        end
+    end
+    return false, "falha carry"
+end
 
 -- ============================================================
--- BOTOES
+-- POSICOES
 -- ============================================================
-local busy = false
+-- Forest fica entre o campo e a safe zone
+local FOREST_POS = Vector3.new(600, 70.5, -360)
+-- Safe zone fica depois do SeparationLine (X > linha)
+local SAFE_ZONE_POS = Vector3.new(650, 70.5, -360)
 
-btnSteal.MouseButton1Click:Connect(function()
-    if busy then return end
-    busy = true
-    status.Text = "Procurando ovo..."
-    status.TextColor3 = Color3.fromRGB(255, 200, 100)
+-- ============================================================
+-- AUTO STEAL (ciclo completo)
+-- ============================================================
+local autoRunning = false
+local function setStatus(txt, color)
+    status.Text = txt
+    status.TextColor3 = color or Color3.fromRGB(180, 180, 200)
+end
 
-    local egg, err = getBestEgg()
-    if not egg then
-        status.Text = "Erro: " .. tostring(err)
-        status.TextColor3 = Color3.fromRGB(255, 100, 100)
-        busy = false
+btnAuto.MouseButton1Click:Connect(function()
+    if autoRunning then
+        autoRunning = false
+        setStatus("AUTO STEAL parado", Color3.fromRGB(255, 200, 100))
+        restoreDS()
         return
     end
+    autoRunning = true
+    setStatus("AUTO STEAL iniciado", Color3.fromRGB(100, 255, 140))
 
-    status.Text = "TP: " .. tostring(egg.AssetCategory)
-    print("[Zyro] TP para", egg.AssetCategory, egg.BottomCFrame.Position)
-    -- offset de 3 studs (igual Lennon)
-    local ok, msg = desyncTP(egg.BottomCFrame.Position, 5000, 3)
-    if ok then
-        status.Text = "OK: " .. tostring(egg.AssetCategory)
-        status.TextColor3 = Color3.fromRGB(100, 255, 140)
-    else
-        status.Text = "Falha: " .. tostring(msg)
-        status.TextColor3 = Color3.fromRGB(255, 100, 100)
-    end
-    busy = false
+    task.spawn(function()
+        while autoRunning do
+            -- 1) Achar o melhor ovo
+            setStatus("Procurando ovo...", Color3.fromRGB(255, 200, 100))
+            local egg, err = getBestEgg()
+            if not egg then
+                setStatus("Sem ovo: " .. tostring(err), Color3.fromRGB(255, 100, 100))
+                task.wait(2)
+                continue
+            end
+
+            -- 2) TP voando pro ovo
+            setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
+            local ok = flyTo(egg.BottomCFrame.Position, 3000, 0, true)
+            if not ok then
+                setStatus("TP egg falhou", Color3.fromRGB(255, 100, 100))
+                task.wait(1)
+                continue
+            end
+            task.wait(0.2)
+
+            -- 3) Pega o ovo
+            setStatus("Pegando ovo...", Color3.fromRGB(255, 200, 100))
+            local carried = false
+            for i = 1, 10 do
+                local cok, cmsg = carryEgg(egg.Uid)
+                if cok then
+                    carried = true
+                    break
+                end
+                task.wait(0.15)
+            end
+            if not carried then
+                setStatus("Nao consegui pegar", Color3.fromRGB(255, 100, 100))
+                restoreDS()
+                task.wait(1)
+                continue
+            end
+
+            -- 4) TP pra Forest
+            setStatus("TP pra Forest...", Color3.fromRGB(100, 200, 255))
+            flyTo(FOREST_POS, 3000, 0)
+            task.wait(0.2)
+
+            -- 5) Anda até safe zone (com humanoid real)
+            restoreDS()
+            task.wait(0.1)
+            setStatus("Andando ate safe zone...", Color3.fromRGB(100, 255, 140))
+            local char = lp.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hrp and hum then
+                local target = SAFE_ZONE_POS
+                local start = tick()
+                while autoRunning and tick() - start < 8 do
+                    local curHrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+                    if not curHrp then break end
+                    local dist = (Vector3.new(target.X, curHrp.Position.Y, target.Z) - curHrp.Position).Magnitude
+                    if dist < 4 then break end
+                    local dir = (Vector3.new(target.X, curHrp.Position.Y, target.Z) - curHrp.Position).Unit
+                    hum:MoveTo(curHrp.Position + dir * 20)
+                    task.wait(0.1)
+                end
+                pcall(function() hum:MoveTo(hrp.Position) end)
+            end
+            task.wait(0.5)
+            setStatus("Ciclo concluido, reiniciando...", Color3.fromRGB(100, 255, 140))
+            task.wait(0.3)
+        end
+    end)
 end)
 
+-- ============================================================
+-- TP pro melhor ovo (só teleporta)
+-- ============================================================
+btnSteal.MouseButton1Click:Connect(function()
+    setStatus("Procurando ovo...", Color3.fromRGB(255, 200, 100))
+    local egg, err = getBestEgg()
+    if not egg then
+        setStatus("Erro: " .. tostring(err), Color3.fromRGB(255, 100, 100))
+        return
+    end
+    setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
+    local ok = flyTo(egg.BottomCFrame.Position, 3000, 0, true)
+    if ok then
+        setStatus("OK: " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 255, 140))
+    else
+        setStatus("Falha no TP", Color3.fromRGB(255, 100, 100))
+    end
+    task.wait(0.1)
+    restoreDS()
+end)
+
+-- ============================================================
+-- TP pra Forest
+-- ============================================================
 btnHome.MouseButton1Click:Connect(function()
-    if busy then return end
-    busy = true
-    status.Text = "Indo pra base (3 waypoints)..."
-    status.TextColor3 = Color3.fromRGB(100, 200, 255)
-    print("[Zyro] TP Home waypoints")
-    local ok, msg = desyncTPWaypoints(HOME_WAYPOINTS, 1000)
+    setStatus("TP pra Forest...", Color3.fromRGB(100, 200, 255))
+    local ok = flyTo(FOREST_POS, 3000, 0)
+    task.wait(0.1)
+    restoreDS()
     if ok then
-        status.Text = "TP Home OK"
-        status.TextColor3 = Color3.fromRGB(100, 255, 140)
+        setStatus("Forest OK", Color3.fromRGB(100, 255, 140))
     else
-        status.Text = "Falha: " .. tostring(msg)
-        status.TextColor3 = Color3.fromRGB(255, 100, 100)
+        setStatus("Falha", Color3.fromRGB(255, 100, 100))
     end
-    busy = false
 end)
 
-print("[Zyro] v4 carregado!")
+print("[Zyro] Auto Steal v5 carregado!")
