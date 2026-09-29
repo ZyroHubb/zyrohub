@@ -10460,3 +10460,5025 @@ end,
 })
 end
 v:Finalize({Window = v2, MainTab = defaultTab, ShowMainTab = true})
+-- ============================================================
+-- ZYRO HUB — BLOCO EXTRA 1/4: Predictor + Discord Tab
+-- ============================================================
+paint = tbl11.Paint
+bold = tbl11.Bold
+color = tbl11.Color
+local tbl11 ={
+Ready = type(v12.CreateCanvas) == "function",
+Bullet = utf8.char(8226),
+Color ={
+Text = "#FFFFFF",
+Income = "#4DFF7A",
+Clock = "#FFC24D",
+Ready = "#4DFF7A",
+Growing = "#FFC24D",
+Inventory = "#7FD8FF",
+Weight = "#CDE7FF",
+Scale = "#FFDF8A",
+Separator = "#7A8CC0",
+Hint = "#9FB8FF",
+},
+NameFont = (function()
+local ok, r = pcall(Font.new, "rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal)
+return ok and r or nil
+end)(),
+}
+do
+local ok, r = pcall(Font.new, "rbxassetid://12187365977", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+tbl11.RarityFont = ok and r or nil
+end
+do
+local seq = tbl6.Sequence
+tbl11.NameGradient = seq({
+{0, Color3.fromRGB(255, 255, 255)},
+{0.5, Color3.fromRGB(222, 238, 255)},
+{1, Color3.fromRGB(255, 255, 255)},
+})
+end
+tbl11.Paint = function(a, b) return string.format("<font color=\"%s\">%s</font>", a, b) end
+tbl11.Bold = function(a) return "<b>"..tostring(a).."</b>" end
+tbl11.Escape = function(a) return (string.gsub(tostring(a), "[<>&]", {["<"]="&lt;",[">"]="&gt;",["&"]="&amp;"})) end
+tbl11.Separator = function() return tbl11.Paint(tbl11.Color.Separator, "  "..tbl11.Bullet.."  ") end
+tbl11.FormatRate = function(a)
+local n = tonumber(a) or 0
+if n >= 1e12 then return string.format("%.2fT/s", n/1e12) end
+if n >= 1e9 then return string.format("%.2fB/s", n/1e9) end
+if n >= 1e6 then return string.format("%.2fM/s", n/1e6) end
+if n >= 1000 then return string.format("%.1fK/s", n/1000) end
+return string.format("%d/s", math.floor(n))
+end
+tbl11.FormatWeight = function(a)
+local n = tonumber(a) or 0
+local s = n >= 1000 and string.format("%.0f", n) or string.format("%.2f", n)
+local i, dec = string.match(s, "^(%-?%d+)(%.%d+)$")
+i = i or s
+local r
+while true do
+local c
+r, c = string.gsub(i, "^(%-?%d+)(%d%d%d)", "%1,%2")
+if c == 0 then break else i = r end
+end
+return r..(dec or "").. " Kg"
+end
+tbl11.FormatClock = function(a)
+local n = math.max(0, math.floor(tonumber(a) or 0))
+return string.format("%02dh %02dm %02ds", math.floor(n/3600), math.floor(n%3600/60), n%60)
+end
+tbl11.ScaleFactor = function(a)
+if a > 5 then return (a/5)^1.2 * 19.637875755794113 end
+return a^1.85
+end
+tbl11.MutationMultiplier = function(a)
+a = type(a) == "table" and a or {}
+local mutations = tbl.Mutations
+if type(mutations) == "table" and type(mutations.EarningsFor) == "function" then
+local ok, r = pcall(mutations.EarningsFor, a)
+if ok and type(r) == "number" then return r end
+end
+return 1
+end
+do
+local map = {Golden = "#FFD34D", Silver = "#E6EEF7", Sakura = "#FF9ED8", GreatBloom = "#7CFFC4", Boss = "#FF7A7A", Monstrous = "#C08BFF"}
+local rainbow = {"#FF6B6B", "#FFB36B", "#FFF06B", "#6BFF8A", "#6BC8FF", "#B96BFF"}
+tbl11.MutationText = function(a)
+local out = {}
+if type(a) == "table" then
+for _, v in ipairs(a) do
+local up = string.upper(fn7(v))
+if v == "Rainbow" or v == "Prismatic" then
+local rb = {}
+for i = 1, #up do rb[#rb+1] = tbl11.Paint(rainbow[(i-1)%#rainbow+1], string.sub(up, i, i)) end
+out[#out+1] = tbl11.Bold(table.concat(rb))
+else
+out[#out+1] = tbl11.Bold(tbl11.Paint(map[v] or "#8FE3FF", tbl11.Escape(up)))
+end
+end
+end
+return table.concat(out, " ")
+end
+end
+do
+local rg = nil
+local function getRG(rar)
+if type(rar) == "table" and typeof(rar.RarityGradient) == "Instance" then return rar.RarityGradient end
+if rg == nil then
+local a = ReplicatedStorage:FindFirstChild("Assets")
+local ui = a and a:FindFirstChild("UI")
+rg = ui and ui:FindFirstChild("RarityGradients") or false
+end
+if not rg or type(rar) ~= "table" then return nil end
+local f = rg:FindFirstChild(tostring(rar._id or rar.DisplayName or ""))
+return f and f:FindFirstChild("RarityGradient") or nil
+end
+local cache = {}
+tbl11.AssetInfo = function(arg)
+local cat = tostring(arg)
+if cache[cat] then return cache[cat] end
+local dir = tbl.Assets and tbl.Assets.Directory
+local flag = type(dir) == "table" and dir[cat] or nil
+local rarity = type(flag) == "table" and type(flag.Rarity) == "table" and flag.Rarity or nil
+local icon = type(flag) == "table" and flag.Icon or nil
+local rname = rarity and tostring(rarity.DisplayName or rarity._id or "Common") or "Common"
+local c3 = rarity and typeof(rarity.Color) == "Color3" and rarity.Color or Color3.fromRGB(255,255,255)
+local info = {}
+info.Name = type(flag) == "table" and tostring(flag.DisplayName or cat) or cat
+info.Category = cat
+info.Rarity = rname
+info.RarityNumber = rarity and tonumber(rarity.RarityNumber or rarity.Rank) or 0
+info.Color = c3
+info.Hex = "#"..string.upper(c3:ToHex())
+info.Gradient = getRG(rarity)
+info.EarningRate = type(flag) == "table" and tonumber(flag.EarningRate) or 0
+info.Icon = type(icon) == "string" and icon ~= "" and icon or nil
+cache[cat] = info
+return info
+end
+end
+tbl11.Income = function(arg, scale, muts)
+if type(scale) ~= "number" or scale <= 0 then return 0 end
+return math.max(math.round(arg.EarningRate * tbl11.ScaleFactor(scale) * tbl11.MutationMultiplier(muts)), 1)
+end
+local function isShown(a)
+if typeof(a) ~= "Instance" or not a:IsDescendantOf(game) then return false end
+while a do
+if a:IsA("GuiObject") and not a.Visible then return false end
+if a:IsA("LayerCollector") then return a.Enabled end
+a = a.Parent
+end
+return false
+end
+tbl11.PageVisible = function()
+local ok, r = pcall(function() return v11.Page end)
+if not ok or typeof(r) ~= "Instance" then return true end
+return isShown(r) and r.AbsoluteSize.X > 0
+end
+tbl11.IsShown = isShown
+-- (Predictor tab setup — resumido)do
+local v15 = v2:CreateTab({Name = "Discord", Side = "Right", SectionsExpanded = true}):CreateSection({Name = "Community", Expanded = true})
+local str = "discord.gg/YjEa2NSbTX"
+local n14 = 0.5
+local n15 = 0.0909
+local n16 = 0.2
+local n17 = 5.4
+local n18 = 4.2
+local n19 = 5.2
+local n20 = 6
+local n21 = 3.6
+local n22 = 6.4
+local n23 = 2
+local n24 = 11.4
+local n25 = 3
+local n26 = 0.35
+local tbl21 ={
+{Color = "#FF6A55", Title = "New Scripts &amp; Updates", Text = "Patch notes and new game scripts are posted there first."},
+{Color = "#FFB054", Title = "Giveaways", Text = "Member giveaways and events are announced in the server."},
+{Color = "#9AA3FF", Title = "Support", Text = "Ask for help, report bugs and get answers from the team."},
+{Color = "#6EE49C", Title = "Suggestions", Text = "Request features and vote on what gets added next."},
+}
+local n27 = n24 + #tbl21 * (n25 + n26) + 2.4 + n16 * 2
+local cs = ColorSequence.new
+local ck = ColorSequenceKeypoint.new
+local c3 = Color3.fromRGB
+local v18 = cs({ck(0, c3(255,218,96)), ck(0.5, c3(255,152,60)), ck(1, c3(255,82,64))})
+local cs2 = ColorSequence.new(c3(74,24,18), c3(14,11,15))
+local tbl23 ={Perks ={}}
+local n28 = 0
+local function fn19()
+local v19 = setclipboard or toclipboard
+local ok = type(v19) == "function" and pcall(v19, "https://discord.gg/YjEa2NSbTX") or false
+fn15(ok and "Discord Link Copied" or "Discord Link", "https://discord.gg/YjEa2NSbTX")
+end
+local function fn20(arg)
+if not tbl23.Hero then return end
+local n29 = n16 * 2
+local n30 = math.max(arg, 14) - n29
+local n31 = math.max(1, n30 - n19 - n14)
+local n32 = math.max(1, n30 - n22 - n14 * 3)
+local n33 = math.max(1, n30 - 1.2)
+tbl23.Hero.Set({Width = n30})
+tbl23.Title.Set({Width = n31})
+tbl23.Subtitle.Set({Width = n31})
+tbl23.Members.Set({Width = n31})
+tbl23.Invite.Set({Width = n30})
+tbl23.Label.Set({Width = n32})
+tbl23.Link.Set({Width = n32})
+tbl23.Copy.Set({X = n30 - n22 - n14})
+tbl23.Header.Set({Width = n30})
+for _, perk in ipairs(tbl23.Perks) do
+perk.Frame.Set({Width = n30})
+perk.Title.Set({Width = n33})
+perk.Text.Set({Width = n33})
+end
+tbl23.Tip.Set({Width = n30})
+end
+local function fn21(arg)
+tbl23.Hero = arg:Frame({Name="Hero",X=n16,Y=n16,Width=14,Height=n17,Background="#FFFFFF",Gradient=cs2,GradientRotation=0,Corner=0.35,StrokeColor="#FF6A40",StrokeThickness=n15,StrokeTransparency=0.55})
+tbl23.Title = arg:Text({Parent=tbl23.Hero,X=n19,Y=0.45,Width=1,Height=1.6,Scale=1.45,Wrap=false,Text="<b>Zyro Hub</b>",Gradient=v18,GradientRotation=0,TextStrokeTransparency=1})
+tbl23.Subtitle = arg:Text({Parent=tbl23.Hero,X=n19,Y=2.1,Width=1,Height=1,Wrap=false,Text="Official Discord Community",Color="#DCDCE8"})
+tbl23.Members = arg:Text({Parent=tbl23.Hero,X=n19,Y=3.3,Width=1,Height=1.2,Wrap=false,Text=string.format("<font color=\"#6EE49C\">%s</font>  <b>%s</b>  <font color=\"#B8B8CC\">Members</font>", utf8.char(9679), "Members")})
+tbl23.Invite = arg:Frame({Name="Invite",X=n16,Y=n20+n16,Width=14,Height=n21,Background="#000000",BackgroundTransparency=0.5,Corner=0.35,StrokeColor="#5865F2",StrokeThickness=n15,StrokeTransparency=0.35})
+tbl23.Label = arg:Text({Parent=tbl23.Invite,X=n14+0.1,Y=0.35,Width=1,Height=0.9,Scale=0.78,Wrap=false,Text="<b>INVITE LINK</b>",Color="#9C9CB4"})
+tbl23.Link = arg:Text({Parent=tbl23.Invite,X=n14+0.1,Y=1.35,Width=1,Height=1.6,Scale=1.05,Wrap=false,Font="code",Text=str})
+tbl23.Copy = arg:Button({Parent=tbl23.Invite,X=14-n22-n14,Y=(n21-n23)/2,Width=n22,Height=n23,Text="<b>Copy Link</b>",Color="#FFFFFF",Scale=1,Background="#5865F2",BackgroundTransparency=0,HoverTransparency=0.15,PressTransparency=0.3,StrokeColor="#9AA3FF",StrokeThickness=n15,Corner=0.3,Callback=fn19})
+tbl23.Header = arg:Text({X=n16+0.1,Y=n24-1.15+n16,Width=14,Height=1,Scale=0.8,Wrap=false,Text="<b>WHAT YOU GET</b>",Color="#9C9CB4"})
+for i, v19 in ipairs(tbl21) do
+local p ={Frame=arg:Frame({Name="Perk",X=n16,Y=n24+(i-1)*(n25+n26)+n16,Width=14,Height=n25,Background="#000000",BackgroundTransparency=0.68,Corner=0.35})}
+p.Title = arg:Text({Parent=p.Frame,X=0.85,Y=0.3,Width=1,Height=1.1,Wrap=false,Text="<b>"..v19.Title.."</b>",Color=v19.Color})
+p.Text = arg:Text({Parent=p.Frame,X=0.85,Y=1.35,Width=1,Height=1.5,Scale=0.86,Wrap=true,Text=v19.Text,Color="#C8C8D8"})
+tbl23.Perks[i] = p
+end
+tbl23.Tip = arg:Text({X=n16+0.1,Y=n27-2.2-n16,Width=14,Height=2,Scale=0.8,Wrap=true,Text="Paste the copied link into your browser or the Discord app to join.",Color="#8A8AA2"})
+arg:SetContentLines(n27)
+arg:OnResize(function(a, w) fn20(w/math.max(a,1)) end)
+end
+if type(v15.CreateCanvas) == "function" then
+local v19 = v15:CreateCanvas({Name="Discord", ShowTitle=false, Layout="free", Style={TextScale=0.84,LineHeight=1.1,MinLines=math.ceil(n27),MaxLines=math.ceil(n27),BackgroundTransparency=0.5,TextColor=Color3.fromRGB(255,255,255),TextStrokeTransparency=0.7}, Build=fn21})
+fn4(function() v19:Destroy() end)
+else
+v15:CreateText({Name="Discord", Text="https://discord.gg/YjEa2NSbTX"})
+end
+if type(v15.CreateButton) == "function" then
+v15:CreateButton({Name="Copy Discord Link", Callback=fn19})
+end
+end-- ============================================================
+-- ZYRO HUB — EXTRA A/4: Mech Boss + Scramble Event
+-- ============================================================
+tbl4.MechBoot = function(arg)
+local ok, result = pcall(function()
+return require(ReplicatedStorage.Shared.Util.ScrambleBossHazards)
+end)
+local mech ={
+Handle = nil,
+Row = nil,
+Status = "Idle",
+Shown = nil,
+Busy = false,
+Generation = 0,
+Hazards ={},
+TravelSpeed = 250,
+Radius = 18,
+SwingGap = 0.12,
+Dodge = true,
+TryBall = true,
+Leave = true,
+HopWindow = 3,
+OpenSeconds = 900,
+ChainPath = "ZyroLibrary/SAE_BossHop.json",
+ChainUntil = 0,
+ChainCycle = nil,
+ArmedCycle = nil,
+HopStamp = 0,
+ArrivedByHop = false,
+HopDelay = 5,
+HopConfirmed = false,
+HopNote = nil,
+HopAt = nil,
+Hopping = false,
+LoadedAt = os.clock(),
+BaitSpeed = 225,
+Interval = 1800,
+Run = nil,
+SwapTools = true,
+SwapIndex = 1,
+SwapSince = 0,
+MainHold = 0.3,
+SecondHold = 0.4,
+LastSwing = 0,
+Links ={},
+}
+tbl4.Mech = mech
+local function fn9()
+return tbl4.Toggle(mech.Handle, false) == true
+end
+local function fn10()
+return workspace:FindFirstChild("ScrambleArena")
+end
+local function fn11()
+return workspace:FindFirstChild("ScrambleArenaPortal")
+end
+local function fn12()
+return localPlayer:GetAttribute("InScrambleArena") == true
+end
+local tbl21 ={Defeated = true, Final = true, Ended = true, Won = true}
+local function bossAlive()
+local v9 = fn11()
+if not v9 then return false end
+if mech.DonePortal == v9 then return false end
+if workspace:GetAttribute("Event_ScrambleBoss") == false then return false end
+local str2 = fn10()
+if str2 then str2 = tostring(str2:GetAttribute("Phase") or "") end
+if tbl21[str2 or ""] then
+mech.DonePortal = v9
+return false
+end
+return true
+end
+mech.BossAlive = bossAlive
+mech.StealFirst = function()
+local steal = tbl4.Steal
+local movement = tbl4.Movement
+if movement.PlaceWanted == true then return "Auto Place Egg goes first" end
+if movement.MutationWanted == true then return "Scrambled Mutation goes first" end
+local flag = tbl4.Toggle(v5, false) == true and steal ~= nil
+local flag2
+if flag then flag2 = steal.Wanted == true or steal.Carrying == true or steal.Active == true
+else flag2 = flag end
+if flag2 then return "Auto Steal goes first" end
+return nil
+end
+pcall(function()
+local scheduleIntervalSeconds = require(ReplicatedStorage.Shared.Flags.ScrambleBossFlags).ScheduleIntervalSeconds
+local interval = type(scheduleIntervalSeconds) == "table" and tonumber(scheduleIntervalSeconds.Value) or nil
+if interval and interval > 0 then mech.Interval = interval end
+end)
+mech.Clock = function(arg2)
+local n5 = math.max(0, math.floor(arg2 + 0.5))
+return string.format("%d:%02d", math.floor(n5 / 60), n5 % 60)
+end
+mech.Timer = function()
+local serverTimeNow = workspace:GetServerTimeNow()
+local scrambleArena = workspace:FindFirstChild("ScrambleArena")
+scrambleArena = scrambleArena and tonumber(scrambleArena:GetAttribute("SpawnsAt")) or 0
+if workspace:FindFirstChild("ScrambleArenaPortal") and not mech.BossAlive() then
+local interval = mech.Interval
+return "Boss beaten, portal closing  |  next Mech portal in ".. mech.Clock(math.ceil(serverTimeNow / interval) * interval - serverTimeNow)
+end
+if workspace:FindFirstChild("ScrambleArenaPortal") then
+if scrambleArena > serverTimeNow then
+return "Mech portal is open  |  boss spawns in ".. mech.Clock(scrambleArena - serverTimeNow)
+end
+return "Mech portal is open now"
+end
+local interval = mech.Interval
+return "Next Mech portal in ".. mech.Clock(math.ceil(serverTimeNow / interval) * interval - serverTimeNow)
+end
+local function fn13(arg2)
+if not arg2 then return nil end
+local hitbox = arg2:FindFirstChild("Hitbox", true)
+if hitbox and hitbox:IsA("BasePart") then return hitbox end
+for _, descendant in ipairs(arg2:GetDescendants()) do
+if descendant:IsA("TouchTransmitter") and descendant.Parent and descendant.Parent:IsA("BasePart") then
+return descendant.Parent
+end
+end
+return nil
+end
+local function fn14(arg2)
+local v9 = tbl4.Root()
+if not v9 or not arg2 or type(firetouchinterest) ~= "function" then return end
+pcall(function()
+firetouchinterest(v9, arg2, 0)
+task.wait(0.05)
+firetouchinterest(v9, arg2, 1)
+end)
+end
+local function fn15(arg2, arg3)
+if not mech.Dodge or not ok or type(result) ~= "table" or type(result.Contains) ~= "function" then return false end
+for k, hazard in pairs(mech.Hazards) do
+local n5 = tonumber(hazard.At) or 0
+local n6 = tonumber(hazard.Warn) or 0
+if n5 + (tonumber(hazard.Duration) or 0.5) + 1.5 < arg3 then
+mech.Hazards[k] = nil
+continue
+end
+if arg3 >= n5 - n6 - 0.1 then
+local ok2, result2 = pcall(result.Contains, hazard, arg2, arg3)
+if ok2 and result2 then return true end
+end
+end
+return false
+end
+local function fn16()
+local character = localPlayer.Character
+local backpack = localPlayer:FindFirstChildOfClass("Backpack")
+for _, v9 in ipairs({character, backpack}) do
+if v9 then
+for _, child in ipairs(v9:GetChildren()) do
+if child:IsA("Tool") and tostring(child:GetAttribute("ItemType")) == "Gear" then
+if string.find(string.lower(tostring(child:GetAttribute("GearName") or "")), "scrambler", 1, true) then
+return child
+end
+end
+end
+end
+end
+return nil
+end
+local function fn17()
+local lastSwing = mech.LastSwing
+if os.clock() - lastSwing < mech.SwingGap then return end
+mech.LastSwing = os.clock()
+local character = localPlayer.Character
+local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+local flag = type(tbl4.FindBat) == "function" and tbl4.FindBat() or nil
+local swapTools = mech.SwapTools and fn16() or nil
+local v9
+if flag and swapTools and flag ~= swapTools then
+local secondHold = mech.SwapIndex == 2 and mech.SecondHold or mech.MainHold
+local swapSince = mech.SwapSince
+if secondHold <= os.clock() - swapSince then
+mech.SwapIndex = mech.SwapIndex == 2 and 1 or 2
+mech.SwapSince = os.clock()
+end
+swapTools = mech.SwapIndex == 2 and swapTools
+v9 = swapTools or flag
+else
+v9 = flag or swapTools
+end
+if not v9 or not humanoid then return end
+if v9.Parent ~= character then
+pcall(function() humanoid:EquipTool(v9) end)
+end
+pcall(function() v9:Activate() end)
+end
+local function fn18(arg2, arg3)
+local character = localPlayer.Character
+local v9 = tbl4.Root()
+if not character or not v9 then return end
+if (v9.Position - arg2).Magnitude > 3 then
+pcall(function()
+character:PivotTo(CFrame.lookAt(arg2, Vector3.new(arg3.X, arg2.Y, arg3.Z)))
+v9.AssemblyLinearVelocity = Vector3.zero
+end)
+end
+end
+local function fn19(arg2)
+local mech2 = arg2:FindFirstChild("Mech")
+local hitbox = mech2 and mech2:FindFirstChild("Hitbox")
+if hitbox and hitbox:IsA("BasePart") then return hitbox.Position, mech2 end
+for _, child in ipairs(arg2:GetChildren()) do
+if child:IsA("Model") and child.Name ~= "Ball" and child.Name ~= "LeaveTeleport" and child.Name ~= "Structure" then
+local hitbox2 = child:FindFirstChild("Hitbox")
+if hitbox2 and hitbox2:IsA("BasePart") then return hitbox2.Position, child end
+end
+end
+return nil, nil
+end
+local function fn20(arg2, arg3)
+local ball = arg2:FindFirstChild("Ball")
+if not ball then return false end
+local position = ball:GetBoundingBox().Position
+local n5 = (tonumber(arg2:GetAttribute("FloorY")) or position.Y) + 3
+local n6 = tonumber(arg2:GetAttribute("CoreStage")) or 0
+if arg2:GetAttribute("BallStunned") == true then
+mech.Run = nil
+local vector = Vector3.new(arg3.Position.X - position.X, 0, arg3.Position.Z - position.Z)
+local unit = vector.Magnitude > 1 and vector.Unit or Vector3.new(1, 0, 0)
+fn18(Vector3.new(position.X, n5, position.Z) + unit * 10, position)
+fn17()
+mech.Status = string.format("Smashing the core  |  stage %d / 3  |  core %s", n6, tostring(arg2:GetAttribute("CoreHealth") or "?"))
+return true
+end
+local str2 = tostring(arg2:GetAttribute("BallTarget"))
+local attribute = arg2:GetAttribute("BallCoil")
+if not mech.Run and str2 == tostring(localPlayer.UserId) and type(attribute) == "string" and attribute ~= "" then
+local coils = arg2:FindFirstChild("Coils")
+coils = coils and coils:FindFirstChild(attribute)
+coils = coils and coils:GetAttribute("Home")
+if typeof(coils) == "Vector3" then
+local vector = Vector3.new(coils.X - position.X, 0, coils.Z - position.Z)
+if vector.Magnitude > 1 then
+local n7 = vector.Unit * 40
+mech.Run = {Goal = Vector3.new(coils.X, n5, coils.Z) + n7, Until = os.clock() + 8, Coil = attribute}
+end
+end
+end
+if mech.Run then
+local vector = Vector3.new(mech.Run.Goal.X - arg3.Position.X, 0, mech.Run.Goal.Z - arg3.Position.Z)
+local flag = vector.Magnitude < 4
+local flag2
+if flag then flag2 = flag else flag2 = os.clock() > mech.Run.Until end
+if flag2 then
+mech.Run = nil
+pcall(function() arg3.AssemblyLinearVelocity = Vector3.new(0, arg3.AssemblyLinearVelocity.Y, 0) end)
+else
+local n7 = vector.Unit * mech.BaitSpeed
+pcall(function() arg3.AssemblyLinearVelocity = Vector3.new(n7.X, arg3.AssemblyLinearVelocity.Y, n7.Z) end)
+mech.Status = string.format("Baiting the ball into %s  |  stage %d / 3", mech.Run.Coil, n6)
+end
+return true
+end
+local vector = Vector3.new(arg3.Position.X - position.X, 0, arg3.Position.Z - position.Z)
+if vector.Magnitude > 18 or vector.Magnitude < 6 then
+local vector2 = vector.Magnitude < 1 and Vector3.new(1, 0, 0) or vector.Unit
+fn18(Vector3.new(position.X, n5, position.Z) + vector2 * 12, position)
+end
+mech.Status = string.format("Ball phase, waiting for it to lock on  |  stage %d / 3", n6)
+return true
+end
+local function fn21(arg2, arg3)
+local scrambleHuman = arg2:FindFirstChild("ScrambleHuman")
+if not scrambleHuman then return false end
+local humanoidRootPart = scrambleHuman:FindFirstChild("HumanoidRootPart") or scrambleHuman.PrimaryPart or scrambleHuman:FindFirstChildWhichIsA("BasePart")
+local position = humanoidRootPart and humanoidRootPart.Position or scrambleHuman:GetPivot().Position
+humanoidRootPart = humanoidRootPart and humanoidRootPart.AssemblyLinearVelocity or Vector3.zero
+local n5 = position + Vector3.new(humanoidRootPart.X, 0, humanoidRootPart.Z) * 0.15
+local vector = Vector3.new(arg3.Position.X - n5.X, 0, arg3.Position.Z - n5.Z)
+local vector2 = vector.Magnitude > 1 and vector.Unit * 5 or Vector3.zero
+local n6 = Vector3.new(n5.X, arg3.Position.Y, n5.Z) + vector2
+local character = localPlayer.Character
+pcall(function()
+character:PivotTo(CFrame.lookAt(n6, Vector3.new(position.X, n6.Y, position.Z)))
+end)
+fn17()
+mech.Status = string.format("Chasing Dr Scramble  |  hits %s / %s", tostring(arg2:GetAttribute("HumanHits") or 0), tostring(arg2:GetAttribute("HumanNeeded") or 3))
+return true
+end
+local function fn22()
+local v9 = fn10()
+local v10 = tbl4.Root()
+local character = localPlayer.Character
+character = character and character:FindFirstChildOfClass("Humanoid")
+if not v9 or not v10 then return end
+local str2 = tostring(v9:GetAttribute("Phase"))
+local n5 = tonumber(v9:GetAttribute("Health")) or 0
+local n6 = tonumber(v9:GetAttribute("MaxHealth")) or 0
+if tostring(v9:GetAttribute("GrabVictim")) == tostring(localPlayer.UserId) and character then
+character.Jump = true
+fn17()
+mech.Status = "Grabbed, breaking free"
+return
+end
+if str2 == "Ball" and mech.TryBall and fn20(v9, v10) then return end
+if str2 == "Human" and fn21(v9, v10) then return end
+local v11, flag = fn19(v9)
+if not v11 then
+local n7 = (tonumber(v9:GetAttribute("SpawnsAt")) or 0) - workspace:GetServerTimeNow()
+mech.Status = n7 > 0 and "In the arena  |  boss spawns in ".. mech.Clock(n7) or string.format("Phase %s, waiting for the boss", str2)
+return
+end
+local serverTimeNow = workspace:GetServerTimeNow()
+local n7 = (tonumber(v9:GetAttribute("FloorY")) or v11.Y) + 3
+local v12 = nil
+local v13 = nil
+for i = 0, 15 do
+local n8 = i / 16 * 3.1415926535897931 * 2
+local radius = mech.Radius
+local z = v11.Z
+local radius2 = mech.Radius
+local vector = Vector3.new(v11.X + math.cos(n8) * radius, n7, z + math.sin(n8) * radius2)
+local magnitude = (vector - v10.Position).Magnitude
+if fn15(vector, serverTimeNow) or fn15(vector, serverTimeNow + 0.4) then
+magnitude += 10000
+end
+if not v12 or magnitude < v12 then
+v12 = magnitude
+v13 = vector
+end
+end
+if v13 then fn18(v13, v11) end
+fn17()
+flag = flag and flag:GetAttribute("Overheated") == true
+mech.Status = string.format("Fighting %s  |  boss %d / %d%s", str2, math.floor(n5 + 0.5), math.floor(n6 + 0.5), flag and "  |  OVERHEAT" or "")
+end
+local function fn23()
+local v9 = fn10()
+local v10 = fn13(v9 and v9:FindFirstChild("LeaveTeleport"))
+if not v10 then return end
+local character = localPlayer.Character
+pcall(function()
+character:PivotTo(CFrame.new(v10.Position + Vector3.new(0, 3, 0)))
+end)
+task.wait(0.2)
+fn14(v10)
+end
+local function fn24(arg2)
+local v9 = fn11()
+local v10 = fn13(v9)
+if not v9 or not v10 then return false end
+local flag = type(tbl4.StealHome) == "function" and tbl4.StealHome() or nil
+if flag and tbl4.InsideBase() then
+local flag2 = mech.Respawned == true
+local n5 = flag + Vector3.new(0, 3, 0)
+local travelSpeed = flag2 and math.min(mech.TravelSpeed, 300) or mech.TravelSpeed
+local now = os.clock()
+local exitTo = nil
+while true do
+if not(os.clock() - now < 20) then exitTo = 1; break else
+if arg2 ~= mech.Generation or not fn9() or fn12() or mech.StealFirst() then exitTo = 2; break else
+local v11 = tbl4.Root()
+if v11 then
+local n6 = n5 - v11.Position
+if n6.Magnitude <= 4 then exitTo = 1; break else
+mech.Status = flag2 and "Respawned, going out through the safe zone" or "Leaving the base through the safe zone"
+local magnitude = n6.Magnitude
+local n7 = math.min(travelSpeed * RunService.Heartbeat:Wait(), magnitude)
+pcall(function()
+local rotation = v11.CFrame.Rotation
+v11.CFrame = CFrame.new(v11.Position + n6.Unit * n7) * rotation
+v11.AssemblyLinearVelocity = Vector3.zero
+end)
+continue
+end
+end
+end
+break
+end
+end
+if exitTo ~= 1 then
+if exitTo == 2 then return false end
+return false
+end
+if flag2 then
+mech.Status = "Respawned, resting in the safe zone"
+local n6 = 0
+while n6 < 0.75 do
+local v11 = tbl4.Root()
+if v11 then pcall(function() v11.AssemblyLinearVelocity = Vector3.zero end) end
+n6 += RunService.Heartbeat:Wait()
+end
+end
+end
+mech.Respawned = false
+for i = 1, 5 do
+if not(arg2 ~= mech.Generation or not fn9() or fn12() or mech.StealFirst()) then
+local v11 = tbl4.Root()
+if not(not v11 or not v10.Parent) then
+mech.Status = "Teleporting to the Mech portal"
+pcall(function()
+v11.CFrame = v10.CFrame + Vector3.new(0, 1, 0)
+v11.AssemblyLinearVelocity = Vector3.zero
+v11.AssemblyAngularVelocity = Vector3.zero
+end)
+fn14(v10)
+local n5 = os.clock() + 0.6
+while os.clock() < n5 and not fn12() do RunService.Heartbeat:Wait() end
+continue
+end
+end
+break
+end
+if fn12() then return true end
+local position = v10.Position
+local now = os.clock()
+local exitTo2 = nil
+local v11
+while true do
+if os.clock() - now < 60 then
+if arg2 ~= mech.Generation or not fn9() or fn12() or mech.StealFirst() then exitTo2 = 1; break else
+v11 = tbl4.Root()
+if not v11 then exitTo2 = 2; break else
+local vector = Vector3.new(position.X - v11.Position.X, 0, position.Z - v11.Position.Z)
+if not(vector.Magnitude <= 14) then
+local n5 = vector.Unit * math.min(mech.TravelSpeed, vector.Magnitude / 0.05)
+mech.Status = string.format("Going to the Mech portal, %d studs", math.floor(vector.Magnitude + 0.5))
+pcall(function()
+v11.AssemblyLinearVelocity = Vector3.new(n5.X, v11.AssemblyLinearVelocity.Y, n5.Z)
+end)
+RunService.Heartbeat:Wait()
+continue
+end
+end
+end
+break
+else exitTo2 = 1; break end
+end
+if exitTo2 ~= 1 then
+if exitTo2 == 2 then return false end
+pcall(function() v11.AssemblyLinearVelocity = Vector3.zero end)
+fn14(v10)
+task.wait(0.4)
+if not fn12() then
+pcall(function()
+local rf = networking:FindFirstChild("RF/ScrambleBoss/EnterArena")
+if rf then rf:InvokeServer() end
+end)
+end
+end
+local now2 = os.clock()
+while not fn12() and os.clock() - now2 < 5 do task.wait(0.1) end
+return fn12()
+end
+local function fn25()
+mech.Busy = true
+mech.Generation = mech.Generation + 1
+local generation = mech.Generation
+tbl4.Shield("mech", true)
+pcall(function()
+if tbl4.Treadmill and tbl4.Treadmill.Riding or type(tbl4.OnBelt) == "function" and tbl4.OnBelt() then
+tbl4.ExitBelt()
+end
+end)
+if not fn12() and not mech.StealFirst() then pcall(fn24, generation) end
+while generation == mech.Generation and fn9() and fn12() and not mech.StealFirst() do
+local v9 = fn10()
+local str2 = v9 and tostring(v9:GetAttribute("Phase")) or ""
+if str2 == "Defeated" or str2 == "Final" or str2 == "Ended" or str2 == "Won" then
+mech.Status = "Dr Scramble defeated, going back home"
+if not mech.DefeatedAt and type(mech.StartChain) == "function" then pcall(mech.StartChain) end
+mech.DefeatedAt = mech.DefeatedAt or os.clock()
+mech.DonePortal = fn11() or mech.DonePortal
+local leave = mech.Leave
+if leave then
+local defeatedAt = mech.DefeatedAt
+leave = os.clock() - defeatedAt > 1
+end
+if leave then pcall(fn23); task.wait(2) else task.wait(0.3) end
+else
+pcall(fn22)
+RunService.Heartbeat:Wait()
+end
+end
+if fn12() and mech.StealFirst() then
+mech.Status = tostring(mech.StealFirst()).. ", leaving the arena"
+pcall(fn23)
+local n5 = 0
+while fn12() and n5 < 5 do n5 += task.wait(0.2) end
+end
+mech.DefeatedAt = nil
+mech.Run = nil
+tbl4.Shield("mech", false)
+tbl4.ReleaseMovement("mech")
+mech.Busy = false
+tbl3.Wake()
+end
+pcall(function()
+local re = networking:FindFirstChild("RE/ScrambleBoss/Hazard")
+if re and re:IsA("RemoteEvent") then
+table.insert(mech.Links, re.OnClientEvent:Connect(function(arg2)
+if type(arg2) == "table" then mech.Hazards[arg2.Id or #mech.Hazards + 1] = arg2 end
+end))
+end
+end)
+table.insert(mech.Links, localPlayer.CharacterAdded:Connect(function()
+mech.Respawned = true
+end))
+mech.Row = arg:CreateText({Name = "Mech Status", Text = "Idle"})
+mech.Handle = arg:CreateToggle({
+Name = "Auto Mech Boss",
+Default = false,
+Callback = function()
+if not fn9() then mech.Generation = mech.Generation + 1 end
+tbl3.Wake()
+end,
+})
+for _, v9 in ipairs({
+{"Mech Tween Speed", 100, 1000, 250, 10, "studs/s", "TravelSpeed"},
+{"Main Weapon Hold", 0, 1.5, 0.3, 0.01, "s", "MainHold"},
+{"Scrambler Hold", 0, 1.5, 0.4, 0.01, "s", "SecondHold"},
+}) do
+arg:CreateSlider({
+Name = v9[1], Min = v9[2], Max = v9[3], Default = v9[4], Increment = v9[5], Unit = v9[6], SubOf = mech.Handle,
+Callback = function(arg2)
+mech[v9[7]] = math.clamp(tonumber(arg2) or v9[4], v9[2], v9[3])
+end,
+})
+end
+for _, v9 in ipairs({
+{"Swap Two Weapons", "SwapTools"},
+{"Dodge Attacks", "Dodge"},
+{"Ball And Core Phase", "TryBall"},
+{"Leave After Fight", "Leave"},
+}) do
+arg:CreateToggle({
+Name = v9[1], Default = true, SubOf = mech.Handle,
+Callback = function(arg2) mech[v9[2]] = arg2 ~= false end,
+})
+end
+mech.HopHandle = arg:CreateToggle({
+Name = "Boss Server Hop",
+Note = "After each boss, hops to a less crowded server to fight again",
+Default = false,
+SubOf = mech.Handle,
+Callback = function()
+mech.HopAt = nil
+if not tbl4.Toggle(mech.HopHandle, false) then
+mech.HopConfirmed = false
+mech.HopNote = nil
+pcall(tbl4.HopPrompt.Hide)
+return
+end
+mech.ArmedCycle = math.floor(workspace:GetServerTimeNow() / mech.Interval)
+if not tbl4.HopPrompt.Manual() then mech.HopConfirmed = true; return end
+mech.ArrivedByHop = false
+mech.HopConfirmed = false
+if not pcall(tbl4.HopPrompt.Show,{
+Title = "Boss Server Hop", Warn = "WARNING",
+Body = "After you beat a Mech boss, Boss Server Hop keeps joining less crowded servers. It fights the boss wherever one is still up and hops again when there is none. Turn it off to stop hopping.",
+Tip = "", Cancel = "Cancel", Accept = "Turn On",
+}, function() mech.HopConfirmed = true; tbl3.Wake() end, function()
+pcall(function() mech.HopHandle:Set(false) end)
+end) then
+mech.HopConfirmed = true
+end
+end,
+})
+mech.PortalCloses = function()
+local interval = mech.Interval
+return math.floor(workspace:GetServerTimeNow() / mech.Interval) * interval + mech.OpenSeconds
+end
+mech.SaveChain = function()
+if type(writefile) ~= "function" then return end
+pcall(function()
+if type(isfolder) == "function" and type(makefolder) == "function" and not isfolder("ZyroLibrary") then
+makefolder("ZyroLibrary")
+end
+writefile(mech.ChainPath, game:GetService("HttpService"):JSONEncode({Until = mech.ChainUntil, Cycle = mech.ChainCycle, HopAt = mech.HopStamp}))
+end)
+end
+mech.StartChain = function()
+if not tbl4.Toggle(mech.HopHandle, false) or not mech.HopConfirmed then return end
+local serverTimeNow = workspace:GetServerTimeNow()
+local chainCycle = math.floor(serverTimeNow / mech.Interval)
+local flag = mech.ChainUntil > serverTimeNow
+local arrivedByHop
+if flag then arrivedByHop = flag else arrivedByHop = mech.ChainCycle == chainCycle and mech.ArrivedByHop end
+if arrivedByHop then return end
+mech.ChainCycle = chainCycle
+mech.ChainUntil = math.min(serverTimeNow + mech.HopWindow * 60, mech.PortalCloses())
+mech.SaveChain()
+end
+pcall(function()
+if type(isfile) == "function" and isfile(mech.ChainPath) then
+local data = game:GetService("HttpService"):JSONDecode(readfile(mech.ChainPath))
+if type(data) == "table" then
+mech.ChainUntil = tonumber(data.Until) or 0
+mech.ChainCycle = tonumber(data.Cycle)
+mech.HopStamp = tonumber(data.HopAt) or 0
+mech.ArrivedByHop = workspace:GetServerTimeNow() - mech.HopStamp < 120
+end
+end
+end)
+arg:CreateSlider({
+Name = "Keep Hopping For",
+Note = "Keeps fighting every boss it finds and hopping for this long",
+Min = 1, Max = 15, Default = 3, Increment = 1, Unit = "min", SubOf = mech.Handle,
+Callback = function(arg2) mech.HopWindow = math.clamp(math.floor(tonumber(arg2) or 3), 1, 15) end,
+})
+tbl3.Add(function()
+if not fn9() or not tbl4.Toggle(mech.HopHandle, false) or not mech.HopConfirmed then
+mech.HopAt = nil
+mech.HopNote = nil
+return false
+end
+if mech.Hopping then return false end
+local serverTimeNow = workspace:GetServerTimeNow()
+if mech.ChainUntil > 0 and serverTimeNow >= mech.ChainUntil then
+mech.ChainUntil = 0
+mech.SaveChain()
+end
+if mech.ChainUntil <= serverTimeNow then
+local n5 = math.floor(serverTimeNow / mech.Interval)
+local n6 = serverTimeNow - n5 * mech.Interval
+local flag = (mech.ArmedCycle == n5 or mech.ChainCycle ~= n5) and n6 >= 20 and n6 < mech.OpenSeconds
+if flag then
+local loadedAt = mech.LoadedAt
+flag = os.clock() - loadedAt >= 8
+end
+if flag and not mech.Busy and not fn12() and not bossAlive() then pcall(mech.StartChain) end
+if mech.ArmedCycle ~= n5 then mech.ArmedCycle = nil end
+end
+if mech.ChainUntil <= serverTimeNow then
+local interval = mech.Interval
+local n5 = serverTimeNow - math.floor(serverTimeNow / mech.Interval) * interval
+mech.HopAt = nil
+if mech.OpenSeconds <= n5 then
+mech.HopNote = "Boss hop waits for the next portal"
+elseif mech.ArrivedByHop and mech.ChainCycle == math.floor(serverTimeNow / mech.Interval) then
+mech.HopNote = "Boss hop is done for this portal"
+elseif mech.Busy or fn12() or bossAlive() then
+mech.HopNote = "Boss hop starts after this boss"
+else
+mech.HopNote = "Looking for the boss here"
+end
+return false
+end
+local n5 = mech.ChainUntil - serverTimeNow
+if mech.Busy or fn12() or bossAlive() then
+mech.HopAt = nil
+mech.HopNote = "Boss hop on, ".. mech.Clock(n5).. " left"
+return false
+end
+local loadedAt = mech.LoadedAt
+if os.clock() - loadedAt < 8 then
+mech.HopAt = nil
+mech.HopNote = "Looking for the boss here"
+return false
+end
+local steal = tbl4.Steal
+local flag = tbl4.Toggle(v5, false) == true and steal
+if flag then flag = steal.Wanted == true or steal.Carrying == true or steal.Active == true end
+if flag then
+mech.HopAt = nil
+mech.HopNote = "A filtered egg is here, stealing before the hop"
+return false
+end
+local v9 = mech
+local hopAt = mech.HopAt
+if not hopAt then
+local hopDelay = mech.HopDelay
+hopAt = os.clock() + hopDelay
+end
+v9.HopAt = hopAt
+local hopAt2 = mech.HopAt
+if os.clock() < hopAt2 then
+mech.HopNote = string.format("No boss here, hopping in %ds  |  %s left", math.ceil(mech.HopAt - os.clock()), mech.Clock(n5))
+return false
+end
+if type(tbl4.ServerHop) ~= "function" then
+mech.HopNote = "Server hop is not ready"
+return false
+end
+mech.Hopping = true
+mech.HopNote = "Joining a less crowded server"
+mech.HopStamp = workspace:GetServerTimeNow()
+mech.SaveChain()
+task.spawn(function()
+local ok2, result2 = pcall(tbl4.ServerHop, "Least Players")
+ok2 = ok2 and tostring(result2) or "error"
+mech.Hopping = false
+if ok2 == "waiting" then
+mech.HopAt = os.clock() + 15
+mech.HopNote = "Teleporting to the next server"
+elseif ok2 == "fetch" then
+mech.HopAt = os.clock() + 10
+mech.HopNote = "Server list unavailable, trying again soon"
+else
+mech.HopAt = os.clock() + 3
+mech.HopNote = "Hop did not land, trying again"
+end
+end)
+return false
+end)
+local function fn26()
+local row = mech.Row
+if not fn9() then
+mech.Status = "Off  |  ".. mech.Timer()
+elseif not mech.Busy then
+if fn12() then mech.Status = "In the arena" else mech.Status = mech.Timer() end
+if mech.HopNote then mech.Status = mech.Status.. "  |  ".. mech.HopNote end
+end
+if row and mech.Shown ~= mech.Status and type(row.Set) == "function" then
+mech.Shown = mech.Status
+pcall(row.Set, row, mech.Status)
+end
+end
+mech.StatusLive = true
+task.spawn(function()
+while mech.StatusLive do
+pcall(fn26)
+task.wait(0.5)
+end
+end)
+tbl3.Add(function()
+pcall(fn26)
+local invisibilityHandle = tbl4.InvisibilityHandle
+local flag = invisibilityHandle ~= nil and tbl4.Toggle(invisibilityHandle, false)
+if fn9() and (mech.Busy or fn12() or bossAlive()) then
+mech.InvisResumeAt = nil
+if not tbl4.InvisMech then
+tbl4.InvisMech = true
+if flag then tbl4.Notify("Invisibility", "Invisibility is paused for the Mech boss and comes back after it.") end
+end
+elseif tbl4.InvisMech and not mech.Busy then
+mech.InvisResumeAt = mech.InvisResumeAt or os.clock() + 5
+local invisResumeAt = mech.InvisResumeAt
+if os.clock() >= invisResumeAt then
+mech.InvisResumeAt = nil
+tbl4.InvisMech = false
+if flag then tbl4.Notify("Invisibility", "The Mech boss is over, Invisibility is back on.") end
+end
+end
+if not fn9() or mech.Busy then return true end
+if fn12() or bossAlive() then
+local v9 = mech.StealFirst()
+if v9 then
+mech.Status = v9.. "  |  ".. mech.Timer()
+return true
+end
+local character = localPlayer.Character
+if character and character:GetAttribute("InvisApplied") == true then
+mech.Status = "Leaving Invisibility for the boss"
+return true
+end
+if not tbl4.ClaimMovement("mech") then
+mech.Status = "Waiting for ".. tostring(tbl4.Movement.Owner or "movement")
+return true
+end
+task.spawn(fn25)
+return true
+end
+return true
+end)
+fn4(function()
+mech.StatusLive = false
+tbl4.InvisMech = false
+mech.Generation = mech.Generation + 1
+for _, link in ipairs(mech.Links) do
+pcall(function() link:Disconnect() end)
+end
+pcall(tbl4.Shield, "mech", false)
+pcall(tbl4.ReleaseMovement, "mech")
+end)
+end
+tbl4.MechBoot(v7)-- ============================================================
+-- ZYRO HUB — EXTRA B/4: Scramble Event
+-- ============================================================
+local n5, n6, n7, tbl21, tbl22, tbl23, tbl24, tbl25, tbl26, snapshot, n8, flag, n9
+local n10, str2, str3, tbl27, n11, flag2, tbl28, tbl29, flag3, n12
+local v9, fn9, fn10, fn11, fn12, fn13, fn14, fn15, fn16, fn17
+local fn18, fn19, fn20, fn21, fn22
+do
+local vector = Vector3.new(2120, -120, -355)
+tbl21 = {"LostPart1", "LostPart2"}
+tbl22 = {
+{Label = "Scrambled Mutation", Id = "MutationConsumable"},
+{Label = "2x Cash Booster", Id = "CashBooster"},
+{Label = "1.25x Speed", Id = "SpeedBoost"},
+{Label = "2x Treadmill Booster", Id = "TreadmillBooster"},
+}
+tbl23 = {}
+for _, v10 in ipairs(tbl22) do
+tbl23[#tbl23 + 1] = v10.Label
+end
+tbl24 = {}
+tbl25 = {}
+tbl26 = {Keep = 0, Handle = nil, Picked = {["Scrambled Mutation"] = true}}
+snapshot = nil
+n8 = -math.huge
+flag = false
+n9 = 0
+n10 = 0
+str2 = ""
+str3 = ""
+tbl27 = {Tool = nil, EquipAt = 0}
+n11 = 16
+flag2 = false
+tbl28 = {Index = 1, Since = 0, Tool = nil}
+tbl29 = {Latch = false, Ended = false}
+flag3 = false
+n12 = 0
+v9 = nil
+local function fn23()
+local packages = ReplicatedStorage:FindFirstChild("Packages")
+packages = packages and packages:FindFirstChild("Networking")
+packages = packages and packages:FindFirstChild("RF/Scramble/Request")
+if packages and packages:IsA("RemoteFunction") then return packages end
+return nil
+end
+fn9 = function(arg, ...)
+local v10 = fn23()
+if not v10 then return nil end
+local v11 = table.pack(...)
+local ok, result = pcall(function()
+return v10:InvokeServer(arg, table.unpack(v11, 1, v11.n))
+end)
+if not ok or type(result) ~= "table" then return nil end
+if type(result.Snapshot) == "table" then
+snapshot = result.Snapshot
+n8 = os.clock()
+elseif arg == "Snapshot" and type(result.State) == "table" then
+snapshot = result
+n8 = os.clock()
+end
+return result
+end
+fn10 = function(arg)
+if arg or snapshot == nil or os.clock() - n8 >= n5 then fn9("Snapshot") end
+return snapshot
+end
+fn11 = function()
+local v10 = snapshot
+return type(v10) == "table" and type(v10.State) == "table" and v10.State or nil
+end
+fn12 = function()
+local v10 = snapshot
+if type(v10) ~= "table" or v10.Enabled == false or type(v10.State) ~= "table" then return false end
+local num = tonumber(v10.EventEndsAt)
+return num == nil or workspace:GetServerTimeNow() < num
+end
+fn13 = function()
+local v10 = snapshot
+local window = type(v10) == "table" and v10.Window or nil
+if type(window) ~= "table" then return false, nil end
+local serverTimeNow = workspace:GetServerTimeNow()
+local num = tonumber(window.StartsAt)
+local num2 = tonumber(window.EndsAt)
+if window.Active == true or num and num2 and serverTimeNow >= num and serverTimeNow < num2 then
+return true, num2 and math.max(0, num2 - serverTimeNow) or nil
+end
+local num3 = tonumber(window.NextAt)
+return false, num3 and math.max(0, num3 - serverTimeNow) or nil
+end
+fn14 = function(arg, arg2)
+local lostParts = type(arg) == "table" and arg.LostParts or nil
+if type(lostParts) ~= "table" then return false end
+if lostParts[arg2] then return true end
+for _, lp in pairs(lostParts) do
+if lp == arg2 then return true end
+end
+return false
+end
+fn15 = function(arg)
+local n13 = 0
+for _, v10 in ipairs(tbl21) do
+if fn14(arg, v10) then n13 += 1 end
+end
+return n13
+end
+local function fn24(arg)
+local n13 = math.max(0, math.floor(tonumber(arg) or 0))
+if n13 >= 3600 then return string.format("%dh %dm", n13 // 3600, n13 % 3600 // 60) end
+return string.format("%dm %ds", n13 // 60, n13 % 60)
+end
+fn16 = function()
+local v10 = fn11()
+if not v10 then return "Dr Scramble event is not running" end
+if not fn12() then return "Dr Scramble event has ended" end
+local v11, v12 = fn13()
+local str4
+if v11 then str4 = "Outbreak live ".. fn24(v12 or 0)
+else str4 = v11 end
+str4 = str4 or v12 and "Outbreak in ".. fn24(v12) or "Outbreak soon"
+local str5 = v10.Completed == true and "Vault claimed"
+if not str5 then str5 = string.format("Lost %d/2  Drone %d/3", fn15(v10), math.min(3, tonumber(v10.DroneParts) or 0)) end
+if v11 then
+local n13 = 0
+for _, v13 in pairs(tbl24) do
+if (tonumber(v13.Health) or 0) > 0 then n13 += 1 end
+end
+str4..= string.format("  %d drones", n13)
+end
+local str6 = string.format("Samples %d  -  %s  -  %s", tonumber(v10.Samples) or 0, str5, str4)
+if str3 ~= "" then str6..= "  -  ".. str3 end
+if str2 ~= "" then str6..= "  -  ".. str2 end
+return str6
+end
+fn17 = function() return tbl4.Root() end
+fn18 = function(arg, arg2, arg3, arg4)
+local n13 = arg4 or 400
+local v10 = fn17()
+if not v10 then return false end
+arg3 = arg3 or 1
+if (v10.Position - arg).Magnitude <= arg3 then return true end
+tbl4.Shield("scramble", true)
+local n14 = os.clock() + 6
+while not tbl4.Swapped() and os.clock() < n14 and not arg2() do
+str2 = "Waiting for the character to settle"
+RunService.Heartbeat:Wait()
+end
+local v11 = fn17() or v10
+local character = localPlayer.Character
+tbl4.Driving = tbl4.Driving + 1
+local position = v11.Position
+local flag4 = nil
+local n15 = (arg - position).Magnitude / n13 + 3
+local n16 = 0
+local connection = RunService.Heartbeat:Connect(function(deltaTime)
+if flag4 ~= nil or tbl4.AntiGuard.Busy then return end
+n16 += deltaTime
+local v12 = fn17()
+if not v12 or arg2() or n16 > n15 or localPlayer.Character ~= character then
+flag4 = false
+return
+end
+if (v12.Position - position).Magnitude > 8 then position = v12.Position end
+local n17 = arg - position
+local n18 = n13 * deltaTime
+local flag5 = n17.Magnitude <= math.max(n18, arg3)
+position = flag5 and arg or position + n17.Unit * n18
+local vector2 = Vector3.new(n17.X, 0, n17.Z)
+local cframe = vector2.Magnitude > 0.05 and CFrame.lookAt(Vector3.zero, vector2.Unit) or v12.CFrame.Rotation
+pcall(function()
+v12.CFrame = CFrame.new(position) * cframe
+v12.AssemblyLinearVelocity = Vector3.zero
+v12.AssemblyAngularVelocity = Vector3.zero
+end)
+if flag5 then flag4 = true end
+end)
+while flag4 == nil do RunService.Heartbeat:Wait() end
+connection:Disconnect()
+tbl4.Driving = math.max(0, tbl4.Driving - 1)
+tbl4.Shield("scramble", false)
+return flag4
+end
+fn19 = function(arg)
+if typeof(arg) ~= "Instance" or not arg:IsA("ProximityPrompt") then return false end
+local ok = pcall(function()
+arg:InputHoldBegin()
+local n13 = tonumber(type(tbl4.PromptHold) == "function" and tbl4.PromptHold(arg) or arg.HoldDuration) or 0
+if n13 > 0 then task.wait(n13 + 0.2) end
+arg:InputHoldEnd()
+end)
+if not ok and type(fireproximityprompt) == "function" then
+ok = pcall(fireproximityprompt, arg)
+end
+return ok
+end
+local function fn25()
+local world = workspace:FindFirstChild("World") or workspace:FindFirstChild("__OBJECTS")
+world = world and world:FindFirstChild("SecretZones")
+return world and world:FindFirstChild("Cave") or nil
+end
+fn20 = function(arg)
+local teleporter = fn25()
+teleporter = teleporter and teleporter:FindFirstChild("Teleporter")
+teleporter = teleporter and teleporter:FindFirstChild(arg)
+teleporter = teleporter and teleporter:FindFirstChild("SecretZonePrompt", true)
+return teleporter and teleporter:IsA("ProximityPrompt") and teleporter or nil
+end
+fn21 = function(arg, arg2)
+arg = arg and arg.Parent
+if arg and arg:IsA("Attachment") then return arg.WorldPosition end
+if arg and arg:IsA("BasePart") then return arg.Position end
+return arg2
+end
+fn22 = function()
+local v10 = fn17()
+if not v10 then return false end
+local position = v10.Position
+local vector2 = Vector3.new(position.X - vector.X, 0, position.Z - vector.Z)
+return position.Y < -60 and vector2.Magnitude < 160
+end
+end
+local fn23
+local function fn24()
+local world = workspace:FindFirstChild("World") or workspace:FindFirstChild("__OBJECTS")
+world = world and world:FindFirstChild("Areas")
+world = world and world:FindFirstChild("SeparationLine")
+return world and world:IsA("BasePart") and world.Position.X or 552
+end
+fn23 = function(arg)
+if not arg then
+arg = fn17()
+arg = arg and arg.Position
+end
+return arg ~= nil and arg.X < fn24()
+end
+local connection = localPlayer.CharacterAdded:Connect(function()
+tbl4.ScrambleRespawned = true
+tbl27.Tool = nil
+tbl27.EquipAt = 0
+end)
+fn4(function()
+pcall(function() connection:Disconnect() end)
+end)
+local fn25
+fn25 = function(arg, arg2)
+if not fn23() then
+tbl4.ScrambleRespawned = false
+return true
+end
+if arg2 and fn23(arg2) then return true end
+local function fn26()
+str2 = "Respawned, resting in the safe zone"
+local n13 = os.clock() + 0.75
+while os.clock() < n13 do
+if arg() then return false end
+task.wait(0.1)
+end
+tbl4.ScrambleRespawned = false
+return true
+end
+local flag4 = type(tbl4.StealHome) == "function" and tbl4.StealHome() or nil
+if not flag4 then
+tbl4.ScrambleRespawned = false
+return true
+end
+local flag5 = tbl4.ScrambleRespawned == true
+if tbl4.DistanceTo(flag4) <= 12 then
+if flag5 then return(fn26()) end
+return true
+end
+str2 = flag5 and "Respawned, easing out through the safe zone" or "Leaving the base through the safe zone"
+local v10 = fn18
+local v11 = v10(flag4 + Vector3.new(0, 3, 0), arg, 3, flag5 and math.min(400, 300) or nil)
+if v11 and flag5 then return(fn26()) end
+return v11
+end
+local fn26, fn27
+do
+local function fn28(arg, arg2, arg3)
+local v10 = fn17()
+if not v10 then return false end
+tbl4.Shield("scramblefly", true)
+local position = v10.Position
+local flag4 = true
+if Vector3.new(arg.X - position.X, 0, arg.Z - position.Z).Magnitude > 250 then
+local n13 = math.max(position.Y, arg.Y, 98)
+flag4 = fn18(Vector3.new(position.X, n13, position.Z), arg2, 2) and fn18(Vector3.new(arg.X, n13, arg.Z), arg2, 2)
+end
+flag4 = flag4 and fn18(arg, arg2, math.min(arg3, 2))
+tbl4.Shield("scramblefly", false)
+return flag4
+end
+local function fn29()
+local flag4 = type(tbl4.StealHome) == "function" and tbl4.StealHome() or nil
+return flag4 and flag4 + Vector3.new(0, 3, 0) or nil
+end
+fn26 = function(arg, arg2, arg3)
+local n13 = arg3 or 6
+if tbl4.DistanceTo(arg) <= n13 then return true end
+local v10 = fn23()
+local v11 = fn23(arg)
+if v10 and not v11 then
+if not fn25(arg2, arg) then return false end
+elseif v11 and not v10 then
+local v12 = fn29()
+if v12 and (v12 - arg).Magnitude > 12 and tbl4.DistanceTo(v12) > 12 then
+str2 = "Coming back through the safe zone"
+if not fn28(v12, arg2, 3) then return false end
+end
+end
+return fn28(arg, arg2, n13)
+end
+fn27 = function(arg)
+if fn23() or arg() or tbl4.IsNight() or tbl4.WallSealed() then return end
+local v10 = fn29()
+if v10 then
+str2 = "Coming back through the safe zone"
+fn26(v10, arg, 4)
+end
+end
+end
+local fn28, fn29, fn30
+do
+local function fn31(arg)
+if fn22() then return true end
+local Entry = fn20("Entry")
+local v10 = fn21(Entry, Vector3.new(2125.7, 73.1, -295.4))
+str2 = "Flying to the Secret Cave"
+if not fn26(v10, arg, 6) then return false end
+for i = 1, 4 do
+if arg() then return false end
+str2 = "Entering the Secret Cave"
+fn19(Entry or fn20("Entry"))
+local n13 = os.clock() + 1.5
+while os.clock() < n13 and not fn22() do RunService.Heartbeat:Wait() end
+if fn22() then return true end
+end
+str2 = "Cave door missed, flying in"
+local quest = type(snapshot) == "table" and snapshot.Quest or nil
+local position = type(quest) == "table" and type(quest.EscapedExperiment) == "table" and quest.EscapedExperiment.Position or nil
+if typeof(position) == "Vector3" then
+pcall(tbl4.FlyTo, position, arg, "scramble")
+end
+return fn22()
+end
+local function fn32(arg)
+local quest = type(snapshot) == "table" and snapshot.Quest or nil
+local flag4 = type(quest) == "table" and quest[arg] or nil
+local position = type(flag4) == "table" and flag4.Position or nil
+if typeof(position) == "Vector3" then return position end
+local drScrambleEvent = workspace:FindFirstChild("DrScrambleEvent")
+drScrambleEvent = drScrambleEvent and drScrambleEvent:FindFirstChild(arg)
+if drScrambleEvent and drScrambleEvent:IsA("Model") then
+return drScrambleEvent:GetPivot().Position
+end
+return nil
+end
+local function fn33(arg)
+local v10 = snapshot
+local interactions = type(v10) == "table" and v10.Interactions or nil
+return math.max(4, (type(interactions) == "table" and tonumber(interactions[arg]) or 12) - 4)
+end
+fn28 = function(arg)
+local v10 = fn11()
+if not v10 or v10.Discovered == true then return true end
+local EscapedExperiment = fn32("EscapedExperiment")
+if not EscapedExperiment or not fn31(arg) then return false end
+str2 = "Talking to the Escaped Experiment"
+if not fn18(EscapedExperiment, arg, fn33("NpcRadius")) then return false end
+local Discover = fn9("Discover")
+fn10(true)
+return Discover ~= nil and fn11() ~= nil and fn11().Discovered == true
+end
+fn29 = function(arg)
+local v10 = fn11()
+local flag4 = not v10 or v10.Completed == true
+local flag5
+if flag4 then flag5 = flag4 else
+local n13 = #tbl21
+flag5 = fn15(v10) >= n13
+end
+if flag5 then return end
+if v10.Discovered ~= true and not fn28(arg) then return end
+for _, v11 in ipairs(tbl21) do
+if arg() then return end
+if not fn14(fn11(), v11) then
+local drScrambleEvent = workspace:FindFirstChild("DrScrambleEvent")
+drScrambleEvent = drScrambleEvent and drScrambleEvent:FindFirstChild(v11)
+drScrambleEvent = drScrambleEvent and drScrambleEvent:FindFirstChild("Hitbox", true)
+local claimLostPart = drScrambleEvent and drScrambleEvent:FindFirstChild("ClaimLostPart", true)
+local position = drScrambleEvent and drScrambleEvent:IsA("BasePart") and drScrambleEvent.Position or fn32(v11)
+if position then
+str2 = "Flying to "..(v11 == "LostPart1" and "Lost Part 1" or "Lost Part 2")
+if fn26(position + Vector3.new(0, 2, 0), arg, 3) then
+str2 = "Collecting the lost part"
+local n13 = position + Vector3.new(0, 2.5, 0)
+local character = localPlayer.Character
+tbl4.Shield("scramble", true)
+tbl4.Driving = tbl4.Driving + 1
+local connection2 = RunService.Heartbeat:Connect(function()
+local v12 = tbl4.Root()
+if not v12 or v12.Parent ~= character or tbl4.AntiGuard.Busy or tbl4.Movement.Owner ~= "scramble" then return end
+pcall(function()
+local rotation = v12.CFrame.Rotation
+v12.CFrame = CFrame.new(n13) * rotation
+v12.AssemblyLinearVelocity = Vector3.zero
+v12.AssemblyAngularVelocity = Vector3.zero
+end)
+end)
+for i = 1, 4 do
+if not arg() then
+claimLostPart = claimLostPart or drScrambleEvent and drScrambleEvent:FindFirstChild("ClaimLostPart", true)
+fn19(claimLostPart)
+task.wait(0.6)
+fn10(true)
+if not fn14(fn11(), v11) then continue end
+end
+break
+end
+connection2:Disconnect()
+tbl4.Driving = math.max(0, tbl4.Driving - 1)
+tbl4.Shield("scramble", false)
+if arg() then return end
+continue
+end
+end
+end
+end
+end
+fn30 = function(arg)
+local v10 = fn11()
+if not v10 or v10.Completed == true then return end
+local num = tonumber(v10.TotalParts)
+local n13
+if num then n13 = num else n13 = fn15(v10) + (tonumber(v10.DroneParts) or 0) end
+if n13 < 5 then return end
+local ExperimentVault = fn32("ExperimentVault")
+if not ExperimentVault or not fn31(arg) then return end
+str2 = "Opening the Experiment Vault"
+if not fn18(ExperimentVault, arg, fn33("VaultRadius")) then return end
+fn9("Vault")
+fn10(true)
+local v11 = fn11()
+if v11 and v11.Completed == true then
+str2 = "Vault opened, The Scrambler unlocked"
+end
+end
+end
+local fn31
+fn31 = function()
+local function fn32(arg)
+if not arg or not arg:IsA("Tool") then return false end
+if tostring(arg:GetAttribute("ItemType")) ~= "MutationConsumable" then return false end
+local attribute = arg:GetAttribute("MutationId") or arg:GetAttribute("MutationTemplate")
+if attribute ~= nil then return tostring(attribute) == "Scrambled" end
+return string.find(string.lower(arg.Name), "scrambled", 1, true) ~= nil
+end
+local character = localPlayer.Character
+if character then
+for _, child in ipairs(character:GetChildren()) do
+if fn32(child) then return child, true end
+end
+end
+local backpack = localPlayer:FindFirstChildOfClass("Backpack")
+if backpack then
+for _, child in ipairs(backpack:GetChildren()) do
+if fn32(child) then return child, false end
+end
+end
+return nil, false
+end
+local fn32
+fn32 = function(arg, arg2)
+local shopPurchases = type(arg) == "table" and arg.ShopPurchases or nil
+local flag4 = type(shopPurchases) == "table" and shopPurchases[arg2.Id] or nil
+if type(flag4) ~= "table" then return 0 end
+local shopPeriod = type(snapshot) == "table" and snapshot.ShopPeriod or nil
+if flag4.Period ~= nil and shopPeriod ~= nil and flag4.Period ~= shopPeriod then return 0 end
+return tonumber(flag4.Count) or 0
+end
+local fn33
+fn33 = function(arg)
+local v10 = fn10(true)
+if type(v10) ~= "table" or type(v10.Shop) ~= "table" then return end
+for _, v11 in ipairs(tbl22) do
+if arg() then return end
+if tbl26.Picked[v11.Label] == true then
+for i = 1, 10 do
+local v12 = snapshot
+local v13 = fn11()
+local v14 = ipairs
+local shop = type(v12) == "table" and v12.Shop or {}
+local v15 = nil
+for _, v16 in v14(shop) do
+if type(v16) == "table" and v16.Id == v11.Id then v15 = v16 end
+end
+if not(not v15 or not v13 or arg()) then
+local num = tonumber(v15.PurchaseLimit)
+if not(num and fn32(v13, v15) >= num) then
+if not((tonumber(v13.Samples) or 0) - (tonumber(v15.Price) or math.huge) < tbl26.Keep) then
+local Shop = fn9("Shop", v15.Id, {Quote = v15.Quote, Sequence = tonumber(v13.ShopSequence) or 0})
+if not(type(Shop) ~= "table" or Shop.Ok ~= true) then
+str2 = "Bought ".. v11.Label
+task.wait(0.4)
+continue
+end
+end
+end
+end
+break
+end
+end
+end
+end
+local n13, n14, n15, tbl30, tbl31, v10, n16, n17, n18, n19
+local fn34, fn35, v11, fn36, fn37, fn38, fn39
+do
+local n20 = 98
+n13 = 12
+n14 = 20
+n15 = 3
+tbl30 = {
+Vector3.new(2000, 90, -360),
+Vector3.new(2700, 90, -370),
+Vector3.new(3400, 90, -365),
+Vector3.new(4100, 90, -360),
+Vector3.new(4800, 90, -370),
+Vector3.new(5500, 90, -360),
+Vector3.new(5900, 90, -365),
+}
+tbl31 = {}
+local tbl32 = {Link = nil, Goal = nil, Look = nil, Character = nil}
+local userId = localPlayer.UserId
+local tbl33 = {}
+for _, v12 in ipairs({
+{Label = "Scrap Drone", Tier = "ScrapDrone"},
+{Label = "Reactor Drone", Tier = "ReactorDrone"},
+{Label = "Augmented Drone", Tier = "AugmentedDrone"},
+}) do
+tbl33[#tbl33 + 1] = v12.Label
+end
+local tbl34 = {ScrapDrone = true, ReactorDrone = true, AugmentedDrone = true}
+local v12 = ({"Nearest", "Rare First", "Most HP First"})[1]
+v10 = ({"Tween", "Teleport"})[1]
+n16 = 110
+n17 = 1.5
+n18 = 0
+n19 = -math.huge
+local function fn40(arg)
+local num = type(arg) == "table" and tonumber(arg.OwnerUserId) or nil
+return num == nil or num == userId
+end
+local function fn41(arg)
+if typeof(arg) == "CFrame" then return arg.Position end
+if typeof(arg) == "Vector3" then return arg end
+return nil
+end
+local function fn42(arg, arg2)
+local v13 = networking:FindFirstChild(arg)
+if not v13 or not v13:IsA("RemoteEvent") then return end
+local connection2 = v13.OnClientEvent:Connect(function(...)
+pcall(arg2, ...)
+end)
+fn4(function() pcall(function() connection2:Disconnect() end) end)
+end
+fn42("RE/Scramble/Drones", function(arg)
+if type(arg) ~= "table" then return end
+local v13 = pairs
+local upserts = type(arg.Upserts) == "table" and arg.Upserts or {}
+for _, upsert in v13(upserts) do
+if type(upsert) == "table" and upsert.Id ~= nil and fn40(upsert) then
+local id = tostring(upsert.Id)
+local attributes = type(upsert.Attributes) == "table" and upsert.Attributes or {}
+local tbl35 = tbl24[id] or {}
+tbl35.Id = id
+tbl35.Position = fn41(upsert.CFrame) or tbl35.Position
+tbl35.Health = tonumber(upsert.Health) or tbl35.Health or 1
+tbl35.Tier = tostring(attributes.ScrambleTier or tbl35.Tier or "")
+tbl35.Area = tostring(attributes.ScrambleArea or tbl35.Area or "")
+tbl35.Seen = os.clock()
+tbl24[id] = tbl35
+end
+end
+local v14 = pairs
+local removed = type(arg.Removed) == "table" and arg.Removed or {}
+for k, v15 in v14(removed) do
+tbl24[tostring(type(v15) == "string" and v15 or k)] = nil
+end
+end)
+fn42("RE/Scramble/Effect", function(arg, arg2, arg3)
+if arg ~= "Hit" or type(arg3) ~= "table" or arg3.DroneId == nil then return end
+local v13 = tbl24[tostring(arg3.DroneId)]
+if not v13 then return end
+v13.Position = fn41(arg2) or v13.Position
+v13.Health = (tonumber(v13.Health) or 1) - (tonumber(arg3.Amount) or 1)
+if type(arg3.Motion) == "string" and string.find(arg3.Motion, "\"Death\"", 1, true) then
+v13.Health = 0
+end
+if v13.Health <= 0 then tbl24[v13.Id] = nil end
+end)
+fn42("RE/Scramble/Drops", function(arg)
+local v13 = pairs
+arg = type(arg) == "table" and arg or {}
+for _, v14 in v13(arg) do
+if type(v14) == "table" and v14.Id ~= nil and fn40(v14) then
+local v15 = fn41(v14.Position) or fn41(v14.Origin)
+if v15 then
+tbl25[tostring(v14.Id)] = {Position = v15, Radius = tonumber(v14.Radius) or 6, ExpiresAt = tonumber(v14.ExpiresAt), Kind = v14.Kind}
+end
+end
+end
+end)
+fn42("RE/Scramble/State", function(arg)
+if type(arg) ~= "table" then return end
+if arg.Patch == true and type(snapshot) == "table" then
+for k, v13 in pairs(arg) do
+if k ~= "Patch" then snapshot[k] = v13 end
+end
+elseif type(arg.State) == "table" then
+snapshot = arg
+end
+n8 = os.clock()
+end)
+fn42("RE/Scramble/RemoveDrops", function(arg)
+local v13 = pairs
+arg = type(arg) == "table" and arg or {}
+for k, v14 in v13(arg) do
+tbl25[tostring(type(v14) == "string" and v14 or k)] = nil
+end
+end)
+local function fn43(arg)
+local scrambleLocalVisuals = workspace:FindFirstChild("ScrambleLocalVisuals")
+return scrambleLocalVisuals and scrambleLocalVisuals:FindFirstChild("PersonalDrone_".. arg) or nil
+end
+local v13 = nil
+local n21 = 0
+local function fn44()
+if v13 and next(v13) ~= nil then return v13 end
+v13 = nil
+if os.clock() < n21 or type(getgc) ~= "function" or not fn13() then return nil end
+n21 = os.clock() + 15
+for _, v14 in ipairs(getgc(false)) do
+if type(v14) == "function" and islclosure(v14) then
+local ok, result = pcall(debug.info, v14, "s")
+if ok and type(result) == "string" and string.find(result, "PersonalDrones", 1, true) then
+local ok2, result2 = pcall(debug.getupvalues, v14)
+if ok2 and type(result2) == "table" then
+for _, v15 in pairs(result2) do
+if type(v15) == "table" then
+local key, v16 = next(v15)
+if type(v16) == "table" and v16.OwnerUserId ~= nil and v16.CFrame ~= nil then
+v13 = v15
+return v15
+end
+end
+end
+continue
+end
+end
+end
+end
+return nil
+end
+local function fn45()
+local v14 = fn44()
+if not v14 then return end
+for k, v15 in pairs(v14) do
+if type(v15) == "table" and fn40(v15) then
+local str4 = tostring(v15.Id or k)
+local attributes = type(v15.Attributes) == "table" and v15.Attributes or {}
+local tbl35 = tbl24[str4]
+local health = tonumber(v15.Health)
+if not tbl35 then
+tbl35 = {Id = str4}
+health = health or 1
+tbl35.Health = health
+tbl24[str4] = tbl35
+elseif health then
+tbl35.Health = math.min(health, tonumber(tbl35.Health) or health)
+end
+tbl35.Position = fn41(v15.CFrame) or tbl35.Position
+tbl35.Tier = tostring(attributes.ScrambleTier or tbl35.Tier or "")
+tbl35.Area = tostring(attributes.ScrambleArea or tbl35.Area or "")
+if attributes.DroneState == "Death" then tbl35.Health = 0 end
+end
+end
+for k in pairs(tbl24) do
+if v14[k] == nil then tbl24[k] = nil end
+end
+end
+fn34 = function()
+pcall(fn45)
+local scrambleLocalVisuals = workspace:FindFirstChild("ScrambleLocalVisuals")
+if not scrambleLocalVisuals then return end
+for _, child in ipairs(scrambleLocalVisuals:GetChildren()) do
+local attribute = child:GetAttribute("ScrambleDroneId")
+if child:IsA("Model") and attribute ~= nil and string.sub(child.Name, 1, 14) == "PersonalDrone_" then
+local str4 = tostring(attribute)
+if child:GetAttribute("DroneState") == "Death" then
+tbl24[str4] = nil
+elseif not tbl24[str4] then
+local ok, result = pcall(child.GetPivot, child)
+tbl24[str4] = {
+Id = str4,
+Position = ok and result.Position or nil,
+Health = tonumber(child:GetAttribute("Health")) or 1,
+Tier = tostring(child:GetAttribute("ScrambleTier") or ""),
+Area = tostring(child:GetAttribute("ScrambleArea") or ""),
+Seen = os.clock(),
+}
+end
+end
+end
+end
+local function fn46(arg)
+local v14 = fn43(arg.Id)
+local hitbox = v14 and v14:FindFirstChild("Hitbox")
+if hitbox and hitbox:IsA("BasePart") then return hitbox.Position end
+if v14 and v14.PrimaryPart then return v14.PrimaryPart.Position end
+return arg.Position
+end
+local function fn47()
+local tbl35 = {}
+local now = os.clock()
+for k, v14 in pairs(tbl24) do
+local flag4 = v14.Tier == nil or v14.Tier == "" or tbl34[v14.Tier] == true
+if flag4 then flag4 = (tonumber(v14.Health) or 0) > 0 end
+flag4 = flag4 and v14.Position
+local flag5
+if flag4 then flag5 = (tbl31[k] or 0) <= now else flag5 = flag4 end
+if flag5 then tbl35[#tbl35 + 1] = v14 end
+end
+return tbl35
+end
+local function fn48()
+local v14 = fn17()
+if not v14 then return nil end
+local huge = math.huge
+local v15 = nil
+for _, v16 in ipairs(fn47()) do
+local magnitude = ((fn46(v16) or v16.Position) - v14.Position).Magnitude
+local v17 = v12
+local n22
+if v17 == "Rare First" then
+if v16.Tier == "AugmentedDrone" then n22 = magnitude - 200000
+elseif v16.Tier == "ReactorDrone" then n22 = magnitude - 100000
+else n22 = magnitude end
+elseif v17 ~= "Most HP First" then n22 = magnitude
+else n22 = magnitude - (tonumber(v16.Health) or 0) * 100000 end
+if n22 < huge then
+huge = n22
+v15 = v16
+end
+end
+return v15
+end
+local function fn49()
+local v14 = fn17()
+if not v14 then return nil, nil end
+local serverTimeNow = workspace:GetServerTimeNow()
+local huge = math.huge
+local v15 = nil
+local v16 = nil
+for k, v17 in pairs(tbl25) do
+if v17.ExpiresAt and v17.ExpiresAt < serverTimeNow then
+tbl25[k] = nil
+else
+local magnitude = (v17.Position - v14.Position).Magnitude
+if v17.Kind == "Part" then magnitude -= 100000 end
+if magnitude < huge then
+huge = magnitude
+v15 = k
+v16 = v17
+end
+end
+end
+return v15, v16
+end
+fn35 = function()
+if not tbl32.Link then
+if tbl32.SwapWait then
+tbl32.SwapWait = nil
+tbl4.Shield("scramble", false)
+end
+return
+end
+tbl32.Link:Disconnect()
+local v14 = tbl32
+local v15 = tbl32
+local v16 = tbl32
+tbl32.Link = nil
+v14.Goal = nil
+v15.Look = nil
+v16.Character = nil
+local v17 = tbl32
+local v18 = tbl32
+local v19 = tbl32
+local v20 = tbl32
+tbl32.Track = nil
+v17.Dir = nil
+v18.Last = nil
+v19.LastAt = nil
+v20.Vel = nil
+tbl4.Driving = math.max(0, tbl4.Driving - 1)
+tbl4.Shield("scramble", false)
+end
+fn4(fn35)
+local function fn50(goal, look, track)
+if track ~= tbl32.Track then
+local v14 = tbl32
+local v15 = tbl32
+tbl32.Last = nil
+v14.LastAt = nil
+v15.Vel = nil
+end
+local v14 = tbl32
+local v15 = tbl32
+tbl32.Goal = goal
+v14.Look = look
+v15.Track = track
+local character = localPlayer.Character
+if tbl32.Link and tbl32.Character ~= character then
+fn35()
+local v16 = tbl32
+local v17 = tbl32
+tbl32.Goal = goal
+v16.Look = look
+v17.Track = track
+end
+if tbl32.Link or not character then return end
+if not tbl4.Swapped() then
+tbl4.Shield("scramble", true)
+tbl32.SwapWait = tbl32.SwapWait or os.clock() + 6
+local swapWait = tbl32.SwapWait
+if os.clock() < swapWait then
+str2 = "Waiting for the character to settle"
+return
+end
+end
+if tbl32.SwapWait then tbl32.SwapWait = nil
+else tbl4.Shield("scramble", true) end
+tbl32.Character = character
+tbl4.Driving = tbl4.Driving + 1
+tbl32.Link = RunService.Heartbeat:Connect(function(deltaTime)
+local v16 = tbl4.Root()
+local goal2 = tbl32.Goal
+if not v16 or not goal2 or v16.Parent ~= tbl32.Character or tbl4.AntiGuard.Busy or tbl4.Movement.Owner ~= "scramble" then return end
+local position = v16.Position
+if tbl32.Track then
+local ok, last = pcall(tbl32.Track)
+if ok and typeof(last) == "Vector3" then
+local now = os.clock()
+if not tbl32.Last or not tbl32.LastAt then
+local v17 = tbl32
+tbl32.Last = last
+v17.LastAt = now
+elseif (last - tbl32.Last).Magnitude > 0.01 then
+local n22 = math.max(now - tbl32.LastAt, 0.0041666666666666666)
+local n23 = (last - tbl32.Last) / n22
+if n23.Magnitude < 400 then
+local n24 = math.clamp(n22 * 12, 0.2, 0.8)
+tbl32.Vel = tbl32.Vel and tbl32.Vel:Lerp(n23, n24) or n23
+end
+local v17 = tbl32
+tbl32.Last = last
+v17.LastAt = now
+elseif now - tbl32.LastAt > 0.25 and tbl32.Vel then
+tbl32.Vel = tbl32.Vel:Lerp(Vector3.zero, math.clamp(deltaTime * 6, 0, 1))
+end
+local vel = tbl32.Vel or Vector3.zero
+local look2 = tbl32.Last + vel * (math.clamp(now - tbl32.LastAt, 0, 0.25) + 0.1)
+local vector = Vector3.new(position.X - look2.X, 0, position.Z - look2.Z)
+if vector.Magnitude > 0.5 then
+local unit = vector.Unit
+local n22 = math.clamp(deltaTime * 5, 0, 1)
+local dir = tbl32.Dir and tbl32.Dir:Lerp(unit, n22) or unit
+tbl32.Dir = dir.Magnitude > 0.01 and dir.Unit or unit
+end
+goal2 = look2 + (tbl32.Dir or Vector3.new(0, 0, 1)) * n11 + Vector3.new(0, -1, 0)
+local v17 = tbl32
+tbl32.Goal = goal2
+v17.Look = look2
+if (goal2 - position).Magnitude <= 40 then
+local n22 = math.max(deltaTime, 0.0041666666666666666)
+local n23 = vel + (goal2 - position) / math.max(0.1, n22)
+local n24 = math.max(400, vel.Magnitude + 80)
+if n24 < n23.Magnitude then n23 = n23.Unit * n24 end
+local assemblyLinearVelocity = n23 + Vector3.new(0, workspace.Gravity * n22 * 0.5, 0)
+local vector2 = Vector3.new(look2.X - position.X, 0, look2.Z - position.Z)
+pcall(function()
+if vector2.Magnitude > 0.05 then v16.CFrame = CFrame.lookAt(position, position + vector2.Unit) end
+v16.AssemblyLinearVelocity = assemblyLinearVelocity
+v16.AssemblyAngularVelocity = Vector3.zero
+end)
+return
+end
+end
+end
+local vector
+if not(Vector3.new(goal2.X - position.X, 0, goal2.Z - position.Z).Magnitude > 250) then
+vector = goal2
+else
+local n22 = math.max(n20, goal2.Y)
+vector = position.Y < n22 - 2 and Vector3.new(position.X, n22, position.Z) or Vector3.new(goal2.X, n22, goal2.Z)
+end
+local n22 = vector - position
+local n23 = n7 * deltaTime
+local n24 = n22.Magnitude <= n23 and vector or position + n22.Unit * n23
+local look2 = tbl32.Look or goal2
+local vector2 = Vector3.new(look2.X - n24.X, 0, look2.Z - n24.Z)
+local cframe = vector2.Magnitude > 0.05 and CFrame.lookAt(Vector3.zero, vector2.Unit) or v16.CFrame.Rotation
+pcall(function()
+v16.CFrame = CFrame.new(n24) * cframe
+v16.AssemblyLinearVelocity = Vector3.zero
+v16.AssemblyAngularVelocity = Vector3.zero
+end)
+end)
+end
+local function fn51(arg)
+if typeof(arg) ~= "Instance" or not arg:IsA("Tool") then return false end
+local attribute = arg:GetAttribute("GearName")
+local gears = tbl.Gears
+local directory = type(gears) == "table" and gears.Directory or nil
+local flag4 = type(attribute) == "string" and type(directory) == "table" and directory[attribute] or nil
+return type(flag4) == "table" and (flag4.ToolController == "Slap" or flag4.SlapPower ~= nil)
+end
+local function fn52(arg)
+if typeof(arg) ~= "Instance" or not arg:IsA("Tool") then return false end
+if tostring(arg:GetAttribute("ItemType")) ~= "Gear" then return false end
+local str4 = tostring(arg:GetAttribute("GearName") or "")
+if str4 == "" then return false end
+return string.find(string.lower(str4), "scrambler", 1, true) ~= nil
+end
+local function fn53()
+return localPlayer.Character, localPlayer:FindFirstChildOfClass("Backpack")
+end
+local function fn54()
+local v14 = tbl4.FindBat()
+if v14 then return v14 end
+local v15, v16 = fn53()
+for _, v17 in ipairs({v15, v16}) do
+if v17 then
+for _, child in ipairs(v17:GetChildren()) do
+if fn51(child) or fn52(child) then return child end
+end
+end
+end
+return nil
+end
+tbl27.Valid = function(arg)
+if typeof(arg) ~= "Instance" or not arg:IsA("Tool") then return false end
+return tbl4.IsBatTool(arg) or fn51(arg) or fn52(arg)
+end
+tbl27.Owned = function(arg)
+if typeof(arg) ~= "Instance" or not arg:IsA("Tool") then return false end
+local v14, v15 = fn53()
+local parent = arg.Parent
+return parent ~= nil and (parent == v14 or parent == v15)
+end
+tbl27.Name = function(arg)
+if fn52(arg) then return "The Scrambler" end
+return tostring(arg:GetAttribute("GearName") or arg.Name)
+end
+tbl27.Put = function(arg, arg2, parent)
+local equipAt = tbl27.EquipAt
+if os.clock() - equipAt < 0.4 then return false end
+tbl27.EquipAt = os.clock()
+pcall(function() arg2:EquipTool(arg) end)
+if arg.Parent ~= parent then
+pcall(function() arg.Parent = parent end)
+end
+return arg.Parent == parent
+end
+local function fn55()
+local character = localPlayer.Character
+local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
+if not character or not humanoid or humanoid.Health <= 0 then return nil, false end
+local tool = character:FindFirstChildWhichIsA("Tool")
+if tool ~= nil and tbl27.Valid(tool) then
+tbl27.Tool = tool
+str3 = tbl27.Name(tool)
+return tool, true
+end
+if not tbl27.Owned(tbl27.Tool) then tbl27.Tool = fn54() end
+local tool2 = tbl27.Tool
+if not tool2 then
+str3 = ""
+return nil, false
+end
+str3 = tbl27.Name(tool2)
+tbl27.Put(tool2, humanoid, character)
+return tool2, tool2.Parent == character
+end
+local function fn56()
+local v14, v15 = fn55()
+if v14 and v15 then
+if flag2 then
+pcall(function() v14:Activate() end)
+task.defer(function() pcall(function() v14:Deactivate() end) end)
+else
+pcall(function() v14:Deactivate(); v14:Activate() end)
+end
+end
+return v14 ~= nil
+end
+local function fn57()
+local v14, v15 = fn53()
+local v16 = nil
+local v17 = nil
+local v18 = nil
+for _, v19 in ipairs({v14, v15}) do
+if v19 then
+for _, child in ipairs(v19:GetChildren()) do
+if tbl27.Valid(child) then
+if fn52(child) then v16 = v16 or child
+else
+local v20 = tbl4.IsBatTool(child)
+local flag4
+if v20 then flag4 = v17 == nil or not tbl4.IsBatTool(v17) else flag4 = v20 end
+if flag4 then
+if v18 then v17 = child
+else v18 = v17; v17 = child end
+elseif v17 == nil then v17 = child
+elseif v18 == nil then v18 = child end
+end
+end
+end
+end
+end
+return v17, v16 or v18
+end
+local function fn58(arg)
+pcall(function() arg:Activate() end)
+task.defer(function() pcall(function() arg:Deactivate() end) end)
+end
+tbl28.SpamUntil = 0
+tbl28.List = {}
+tbl28.Dirty = true
+tbl28.BuiltAt = 0
+tbl28.NextBag = 0
+tbl28.Links = {}
+tbl28.Click = function(arg)
+pcall(arg.Deactivate, arg)
+pcall(arg.Activate, arg)
+end
+tbl28.Rebuild = function()
+tbl28.Dirty = false
+tbl28.BuiltAt = os.clock()
+table.clear(tbl28.List)
+local v14, v15 = fn53()
+for _, v16 in ipairs({v14, v15}) do
+if v16 then
+for _, child in ipairs(v16:GetChildren()) do
+if tbl27.Valid(child) then tbl28.List[#tbl28.List + 1] = child end
+end
+end
+end
+end
+tbl28.Beat = RunService.Heartbeat:Connect(function()
+local now = os.clock()
+if tbl28.SpamUntil <= now then return end
+if tbl28.Dirty or now - tbl28.BuiltAt > 1 then tbl28.Rebuild() end
+local character = localPlayer.Character
+local flag4 = now >= tbl28.NextBag
+if flag4 then tbl28.NextBag = now + 0.25 end
+for _, v14 in ipairs(tbl28.List) do
+local parent = v14.Parent
+if parent == character then tbl28.Click(v14)
+elseif flag4 and parent ~= nil then tbl28.Click(v14) end
+end
+end)
+tbl28.Unwatch = function()
+for i = #tbl28.Links, 1, -1 do
+pcall(function() tbl28.Links[i]:Disconnect() end)
+tbl28.Links[i] = nil
+end
+end
+tbl28.Watch = function(arg)
+tbl28.Unwatch()
+tbl28.Dirty = true
+if not arg then return end
+tbl28.Links[#tbl28.Links + 1] = arg.ChildAdded:Connect(function(child)
+if not child:IsA("Tool") then return end
+tbl28.Dirty = true
+local spamUntil = tbl28.SpamUntil
+if os.clock() < spamUntil and tbl27.Valid(child) then
+tbl28.Click(child)
+task.defer(tbl28.Click, child)
+end
+end)
+tbl28.Links[#tbl28.Links + 1] = arg.ChildRemoved:Connect(function(child)
+if child:IsA("Tool") then tbl28.Dirty = true end
+end)
+task.defer(function()
+local backpack = localPlayer:FindFirstChildOfClass("Backpack") or localPlayer:WaitForChild("Backpack", 5)
+if backpack and localPlayer.Character == arg then
+tbl28.Links[#tbl28.Links + 1] = backpack.ChildAdded:Connect(function() tbl28.Dirty = true end)
+tbl28.Links[#tbl28.Links + 1] = backpack.ChildRemoved:Connect(function() tbl28.Dirty = true end)
+end
+end)
+end
+tbl28.Watch(localPlayer.Character)
+tbl28.CharLink = localPlayer.CharacterAdded:Connect(tbl28.Watch)
+fn4(function()
+tbl28.SpamUntil = 0
+tbl28.Unwatch()
+for _, v14 in ipairs({"Beat", "CharLink"}) do
+if tbl28[v14] then
+pcall(function() tbl28[v14]:Disconnect() end)
+tbl28[v14] = nil
+end
+end
+end)
+local function fn59()
+local character = localPlayer.Character
+local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
+if not character or not humanoid or humanoid.Health <= 0 then return false end
+local v14, v15 = fn57()
+if not v14 or not v15 then return fn56() end
+local tbl35 = {v14, v15}
+local tbl36 = {0.3, 0.4}
+local v16 = tbl35[tbl28.Index]
+if tbl28.Tool ~= v16 then
+local v17 = tbl28
+local v18 = tbl28
+local now = os.clock()
+v17.Tool = v16
+v18.Since = now
+end
+local flag4 = v16.Parent == character
+if flag4 then
+local since = tbl28.Since
+flag4 = os.clock() - since >= tbl36[tbl28.Index]
+end
+if flag4 then
+tbl28.Index = tbl28.Index == 1 and 2 or 1
+v16 = tbl35[tbl28.Index]
+local v17 = tbl28
+local v18 = tbl28
+local now = os.clock()
+v17.Tool = v16
+v18.Since = now
+end
+tbl27.Tool = v16
+str3 = tbl27.Name(v16)
+if v16.Parent ~= character then
+pcall(function() humanoid:EquipTool(v16) end)
+if v16.Parent ~= character then pcall(function() v16.Parent = character end) end
+tbl28.Since = os.clock()
+if v16.Parent == character then
+fn58(v16)
+task.defer(fn58, v16)
+end
+return true
+end
+fn58(v16)
+return true
+end
+local function fn60(arg, arg2, arg3)
+local now = os.clock()
+local n22 = now + n15
+while os.clock() < n22 and not arg() do
+local v14, v15 = fn49()
+local flag4 = not v15
+if not flag4 then
+if arg2 then flag4 = (v15.Position - arg2).Magnitude > (arg3 or 40)
+else flag4 = arg2 end
+end
+if flag4 then
+if arg2 and os.clock() - now < 1.2 then
+task.wait(0.1)
+continue
+end
+return
+end
+if fn23() and not fn23(v15.Position) then
+fn35()
+str2 = "Leaving the base through the safe zone"
+if not fn26(v15.Position + Vector3.new(0, 2.5, 0), arg, 6) then return end
+continue
+end
+str2 = v15.Kind == "Part" and "Picking up a Drone Part" or "Picking up Samples"
+fn50(v15.Position + Vector3.new(0, 2.5, 0), v15.Position)
+local n23 = os.clock() + 2.5
+while tbl25[v14] and os.clock() < n23 and not arg() do task.wait(0.1) end
+tbl25[v14] = nil
+n22 = os.clock() + 1.2
+end
+end
+local function fn61(arg, arg2)
+local now = os.clock()
+local n22 = tonumber(arg.Health) or 0
+local now2 = nil
+local now3 = nil
+local fn62 = nil
+local flag4 = false
+while not arg2() do
+local v14 = tbl24[arg.Id]
+local flag5 = not v14
+local flag6
+if flag5 then flag6 = flag5 else flag6 = (tonumber(v14.Health) or 0) <= 0 end
+if flag6 then return true end
+local v15 = fn43(arg.Id)
+if v15 and v15:GetAttribute("DroneState") == "Death" then
+tbl24[arg.Id] = nil
+return true
+end
+local v16 = fn17()
+local flag7 = v16 ~= nil and v14.Position ~= nil
+if flag7 then flag7 = (v16.Position - (fn46(v14) or v14.Position)).Magnitude <= 30 end
+if flag7 and not v15 then
+now2 = now2 or os.clock()
+if os.clock() - now2 > 1.5 then
+tbl24[arg.Id] = nil
+return false
+end
+else now2 = nil end
+local n23 = tonumber(v14.Health) or 0
+if n23 ~= n22 then
+now3 = nil
+n22 = n23
+end
+if n14 < os.clock() - now then
+tbl31[arg.Id] = os.clock() + 30
+return false
+end
+local position = fn46(v14) or v14.Position
+local v17 = fn17()
+if not v17 then return false end
+if fn23() and not fn23(position) then
+fn35()
+str2 = "Leaving the base through the safe zone"
+if not fn26(position, arg2, 12) then return false end
+if arg2() then return false end
+end
+if not fn62 then
+local v18 = nil
+local isBasePart = nil
+fn62 = function()
+local v19 = tbl24[arg.Id]
+if not v19 then return nil end
+if not v18 or not v18.Parent then
+v18 = fn43(arg.Id)
+local hitbox = v18 and v18:FindFirstChild("Hitbox")
+isBasePart = hitbox and hitbox:IsA("BasePart") and hitbox or v18 and v18.PrimaryPart or nil
+end
+if isBasePart and isBasePart.Parent then return isBasePart.Position end
+return v19.Position
+end
+end
+if flag2 then fn50(position + Vector3.new(0, -1, 16), position, fn62)
+else fn50(position + Vector3.new(0, -1, 5), position) end
+if (v17.Position - position).Magnitude <= 60 and not flag2 then fn55() end
+local magnitude = (v17.Position - position).Magnitude
+local flag8 = false
+if flag2 then flag8 = math.max(12, n11 + 7) end
+local flag9 = magnitude <= (flag8 or 12)
+if flag9 then
+if flag2 then tbl28.SpamUntil = os.clock() + 0.2 end
+now3 = now3 or os.clock()
+if os.clock() - now3 > 8 then
+tbl31[arg.Id] = os.clock() + 30
+return false
+end
+local flag10 = false
+if flag2 then flag10 = fn59() end
+if flag10 or not flag2 and fn56() then
+str2 = string.format("Smashing %s  %d HP", v14.Tier ~= "" and v14.Tier or "drone", math.max(0, tonumber(v14.Health) or 0))
+elseif not flag4 then
+str2 = "No bat found, get any bat to smash drones"
+flag4 = true
+end
+else str2 = "Flying to a drone" end
+local wait = task.wait
+local flag10 = false
+if not flag2 then flag9 = flag10 end
+wait(flag9 and 0.03 or 0.1)
+end
+return false
+end
+local function fn62(arg)
+for _, v14 in ipairs(tbl30) do
+if arg() then return false end
+str2 = "Looking for drones"
+fn50(v14)
+local n22 = os.clock() + 12
+while os.clock() < n22 and not arg() do
+fn34()
+if #fn47() > 0 then return true end
+if tbl4.DistanceTo(v14) < 8 then break end
+task.wait(0.2)
+end
+end
+return #fn47() > 0
+end
+local function fn63()
+local serverTimeNow = workspace:GetServerTimeNow()
+local v14, v15 = fn13()
+if v14 and v15 and v15 < 25 then return next(tbl25) ~= nil end
+for _, v16 in pairs(tbl25) do
+if v16.Kind == "Part" or v16.ExpiresAt and v16.ExpiresAt - serverTimeNow < 30 then
+return true
+end
+end
+return false
+end
+local v14 = nil
+local function fn64()
+local window = type(snapshot) == "table" and snapshot.Window or nil
+return type(window) == "table" and window.Index or nil
+end
+local function fn65(arg)
+local flag4 = v14 ~= nil and v14 == fn64()
+while not arg() do
+RunService.Heartbeat:Wait()
+if not arg() then
+fn34()
+if fn63() then fn60(arg) end
+local v15, flag5, flag6, flag7, position, flag8, magnitude, flag9, v16, flag10, flag11, flag12, vector, flag13, n22, v17, n23, flag14, v18, flag15
+if fn23() then
+fn35()
+if fn25(arg) then
+v15 = fn48()
+flag5 = not v15 and next(tbl25) ~= nil
+if flag5 then
+fn60(arg)
+fn34()
+v15 = fn48()
+end
+if not v15 then
+flag6 = not fn13() or flag4
+if not flag6 then
+v14 = fn64()
+flag7 = true
+flag4 = true
+if not fn62(arg) then break else continue end
+end
+else
+position = fn46(v15) or v15.Position
+flag8 = fn17()
+magnitude = flag8 and (flag8.Position - position).Magnitude or 0
+flag9 = v10 == "Teleport"
+flag8 = flag9 and flag8
+if flag8 then
+v16 = fn23()
+flag10 = v16 and not fn23(position)
+flag8 = not flag10
+end
+if flag8 then
+flag11 = magnitude > n13 and magnitude <= n16
+flag12 = flag11 and os.clock() >= n18 and os.clock() - n19 >= n17
+if flag12 then
+n19 = os.clock()
+vector = Vector3.new
+flag13 = false
+if flag2 then flag13 = 16 end
+flag13 = flag13 or 5
+n22 = position + vector(0, -1, flag13)
+fn50(n22, position)
+v17 = fn17()
+if v17 then
+str2 = "Teleporting to the next drone"
+pcall(function()
+v17.CFrame = CFrame.lookAt(n22, Vector3.new(position.X, n22.Y, position.Z))
+v17.AssemblyLinearVelocity = Vector3.zero
+v17.AssemblyAngularVelocity = Vector3.zero
+end)
+n23 = os.clock() + 0.8
+while true do
+flag14 = os.clock() < n23 and not arg()
+if flag14 then
+v18 = fn17()
+flag15 = v18 and (v18.Position - n22).Magnitude > 40
+if flag15 then
+n18 = os.clock() + 30
+str2 = "Teleport pulled back, tweening"
+break
+else
+RunService.Heartbeat:Wait()
+continue
+end
+end
+break
+end
+end
+end
+end
+fn61(v15, arg)
+continue
+end
+end
+else
+v15 = fn48()
+flag5 = not v15 and next(tbl25) ~= nil
+if flag5 then
+fn60(arg)
+fn34()
+v15 = fn48()
+end
+if not v15 then
+flag6 = not fn13() or flag4
+if not flag6 then
+v14 = fn64()
+flag7 = true
+flag4 = true
+if not fn62(arg) then break else continue end
+end
+else
+position = fn46(v15) or v15.Position
+flag8 = fn17()
+magnitude = flag8 and (flag8.Position - position).Magnitude or 0
+flag9 = v10 == "Teleport"
+flag8 = flag9 and flag8
+if flag8 then
+v16 = fn23()
+flag10 = v16 and not fn23(position)
+flag8 = not flag10
+end
+if flag8 then
+flag11 = magnitude > n13 and magnitude <= n16
+flag12 = flag11 and os.clock() >= n18 and os.clock() - n19 >= n17
+if flag12 then
+n19 = os.clock()
+vector = Vector3.new
+flag13 = false
+if flag2 then flag13 = 16 end
+flag13 = flag13 or 5
+n22 = position + vector(0, -1, flag13)
+fn50(n22, position)
+v17 = fn17()
+if v17 then
+str2 = "Teleporting to the next drone"
+pcall(function()
+v17.CFrame = CFrame.lookAt(n22, Vector3.new(position.X, n22.Y, position.Z))
+v17.AssemblyLinearVelocity = Vector3.zero
+v17.AssemblyAngularVelocity = Vector3.zero
+end)
+n23 = os.clock() + 0.8
+while true do
+flag14 = os.clock() < n23 and not arg()
+if flag14 then
+v18 = fn17()
+flag15 = v18 and (v18.Position - n22).Magnitude > 40
+if flag15 then
+n18 = os.clock() + 30
+str2 = "Teleport pulled back, tweening"
+break
+else
+RunService.Heartbeat:Wait()
+continue
+end
+end
+break
+end
+end
+end
+end
+fn61(v15, arg)
+continue
+end
+end
+end
+break
+end
+fn60(arg)
+fn35()
+end
+local tbl35 = {LostPart1 = "Mechanical Gear", LostPart2 = "Wiring Harness"}
+tbl4.ScrambleLostPart = function(arg)
+return fn14(fn11(), arg)
+end
+v11 = nil
+fn36 = function()
+local v15 = fn11()
+if not v15 then return "Lost Parts: no event data" end
+local drScrambleEvent = workspace:FindFirstChild("DrScrambleEvent")
+local tbl36 = {}
+local n22 = 0
+local n23 = 0
+for _, v16 in ipairs(tbl21) do
+local v17 = drScrambleEvent and drScrambleEvent:FindFirstChild(v16)
+if v17 then n22 += 1 end
+if fn14(v15, v16) then n23 += 1
+elseif v17 then
+local ok, result = pcall(v17.GetPivot, v17)
+local v18 = ok and tbl4.DistanceTo(result.Position) or nil
+tbl36[#tbl36 + 1] = v18 and string.format("%s %d studs", tbl35[v16], math.floor(v18)) or tbl35[v16]
+else tbl36[#tbl36 + 1] = tbl35[v16].. " not on map" end
+end
+local str4 = string.format("Lost Parts on map %d/2  -  Collected %d/2", n22, n23)
+local str5
+if #tbl36 > 0 then str5 = str4.. "  -  ".. table.concat(tbl36, "  -  ")
+else str5 = str4 end
+return str5
+end
+local function fn66(arg)
+if not fn22() then return true end
+local Exit = fn20("Exit")
+local v15 = fn21(Exit, nil)
+if not v15 then return false end
+str2 = "Leaving the Secret Cave"
+if not fn18(v15, arg, 4) then return false end
+for i = 1, 4 do
+if arg() then return false end
+fn19(Exit or fn20("Exit"))
+local n22 = os.clock() + 1.5
+while os.clock() < n22 and fn22() do RunService.Heartbeat:Wait() end
+if not fn22() then return true end
+end
+return not fn22()
+end
+local function fn67()
+return tbl4.IsNight() or tbl4.WallSealed()
+end
+local function fn68(arg)
+if not fn67() then return true end
+fn35()
+while fn67() and not arg() do
+str2 = tbl4.IsNight() and "Night, waiting for the wall to drop" or "Waiting for the wall to drop"
+RunService.Heartbeat:Wait()
+end
+return not arg()
+end
+fn37 = function()
+if not tbl4.Toggle(v9, false) or not fn12() then return false end
+if tbl29.Ended then return false end
+if fn13() then return true end
+fn34()
+return #fn47() > 0 or next(tbl25) ~= nil
+end
+fn38 = function()
+local v15 = fn11()
+if not v15 or v15.Completed == true or not fn12() then return false end
+local num = tonumber(v15.TotalParts)
+if not num then num = fn15(v15) + (tonumber(v15.DroneParts) or 0) end
+local flag4 = tbl4.Toggle(v9, false)
+if flag4 then
+local n22 = #tbl21
+flag4 = fn15(v15) < n22
+end
+local flag5 = tbl4.Toggle(v9, false) and (num >= 5 or v15.Discovered ~= true)
+return flag4 or flag5
+end
+fn39 = function(arg)
+local function fn69()
+return arg ~= n9 or tbl4.Movement.Owner ~= "scramble"
+end
+local function fn70()
+return fn69() or not fn37() or fn67()
+end
+while true do
+if fn37() and not fn69() then
+if fn68(fn69) then
+pcall(fn65, fn70)
+if fn67() then continue end
+end
+end
+break
+end
+fn35()
+if fn69() or fn37() then return end
+if not fn38() then
+fn27(fn69)
+str2 = ""
+return
+end
+if not fn68(fn69) then return end
+fn10(true)
+local v15 = fn11()
+if not v15 then return end
+if not fn38() then
+str2 = ""
+return
+end
+if tbl4.Toggle(v9, false) and v15.Discovered ~= true then pcall(fn28, fn69) end
+if tbl4.Toggle(v9, false) then
+pcall(fn29, function() return fn69() or not tbl4.Toggle(v9, false) or fn37() or fn67() end)
+end
+if tbl4.Toggle(v9, false) then
+pcall(fn30, function() return fn69() or not tbl4.Toggle(v9, false) or fn37() or fn67() end)
+end
+if fn22() and not fn69() then pcall(fn66, fn69) end
+if not fn22() and not fn37() then pcall(fn27, fn69) end
+end
+end
+local fn40
+fn40 = function(arg)
+if not(tbl4.Treadmill.Riding or tbl4.OnBelt()) then return true end
+for i = 1, 3 do
+if arg() then return false end
+str2 = "Jumping off the treadmill"
+tbl4.Treadmill.Riding = false
+task.spawn(tbl4.LeaveBelt)
+local character = localPlayer.Character
+local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+if humanoid then
+pcall(function()
+humanoid.Sit = false
+humanoid.Jump = true
+humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+end)
+end
+local v12 = fn17()
+if v12 then
+local position = v12.Position
+local n20 = position + Vector3.new(0, 18, 0)
+local now = os.clock()
+while true do
+RunService.Heartbeat:Wait()
+local v13 = fn17()
+if not v13 then break else
+local n21 = math.min(1, (os.clock() - now) / 0.25)
+pcall(function()
+local rotation = v13.CFrame.Rotation
+v13.CFrame = CFrame.new(position:Lerp(n20, n21)) * rotation
+v13.AssemblyLinearVelocity = Vector3.zero
+v13.AssemblyAngularVelocity = Vector3.zero
+end)
+if not(n21 >= 1) then continue end
+break
+end
+end
+end
+if not(tbl4.Treadmill.Riding or tbl4.OnBelt()) then return true end
+end
+return not tbl4.OnBelt()
+end
+tbl26.Handle = v7:CreateToggle({
+Name = "Auto Buy Scramble Shop",
+Note = "Buy the picked items with Samples",
+Default = false,
+Callback = function()
+n12 = 0
+tbl3.Wake()
+end,
+})
+fn6(v7:CreateMultiDropdown({
+Name = "Scramble Shop Items",
+Options = tbl23,
+Default = {"Scrambled Mutation"},
+SubOf = tbl26.Handle,
+Callback = function(arg)
+local picked = {}
+if type(arg) == "table" then
+for k, v12 in pairs(arg) do
+if v12 == true and type(k) == "string" then picked[k] = true
+elseif type(v12) == "string" then picked[v12] = true end
+end
+end
+tbl26.Picked = picked
+end,
+}))
+v7:CreateSlider({
+Name = "Keep Samples",
+Note = "Never spend below this many Samples",
+Min = 0, Max = 10000, Default = 0, Increment = 25, Unit = "",
+SubOf = tbl26.Handle,
+Callback = function(arg) tbl26.Keep = math.max(0, tonumber(arg) or 0) end,
+})
+end-- ============================================================
+-- ZYRO HUB — EXTRA C/4: Player + AntiGuard UI + Misc
+-- ============================================================
+local v12, v13
+do
+local v14 = v2:CreateTab({Name = "Player", SectionsExpanded = true})
+tbl4.EspSection = v14:CreateSection({Name = "ESP", Expanded = false})
+local v15 = v14:CreateSection({Name = "Movement", Expanded = true})
+v12 = v14:CreateSection({Name = "Character", Expanded = true})
+v13 = v14:CreateSection({Name = "Combat", Expanded = true})
+local createToggle = nil
+local n20 = 350
+local connection2 = nil
+local flag4 = false
+local function fn41()
+local character = localPlayer.Character
+local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+character = character and character:FindFirstChildOfClass("Humanoid")
+if humanoidRootPart and character and character.Health > 0 then
+return humanoidRootPart, character
+end
+return nil, nil
+end
+local function fn42()
+if not flag4 then return end
+flag4 = false
+local v16, v17 = fn41()
+if not v16 then return end
+local alv = v16.AssemblyLinearVelocity
+local md = v17.MoveDirection
+local vector = Vector3.new(md.X, 0, md.Z)
+local vector2 = vector.Magnitude > 0.001 and vector.Unit * v17.WalkSpeed or Vector3.zero
+pcall(function()
+v16.AssemblyLinearVelocity = Vector3.new(vector2.X, alv.Y, vector2.Z)
+end)
+end
+local function fn43()
+if connection2 then connection2:Disconnect(); connection2 = nil end
+fn42()
+tbl4.Shield("speed", false)
+end
+local function fn44()
+if connection2 then return end
+tbl4.Shield("speed", true)
+connection2 = RunService.Heartbeat:Connect(function()
+if tbl4.Steal.Active or tbl4.Flying or tbl4.Driving > 0 or tbl4.Treadmill.Riding then flag4 = false; return end
+local v16, v17 = fn41()
+if not v16 or v17.Sit or v17.PlatformStand then flag4 = false; return end
+local num = tonumber(localPlayer:GetAttribute("RagdollEndTime"))
+if num and num > workspace:GetServerTimeNow() then flag4 = false; return end
+local md = v17.MoveDirection
+local vector = Vector3.new(md.X, 0, md.Z)
+if vector.Magnitude <= 0.001 then fn42(); return end
+local n21 = vector.Unit * n20
+local alv = v16.AssemblyLinearVelocity
+pcall(function()
+v16.AssemblyLinearVelocity = Vector3.new(n21.X, alv.Y, n21.Z)
+end)
+flag4 = true
+end)
+end
+tbl4.SpeedForced = false
+local function fn45()
+if tbl4.Toggle(createToggle, false) or tbl4.SpeedForced then fn44() else fn43() end
+end
+local flag5 = false
+local flag6 = false
+local flag7 = false
+tbl4.SetSpeedForced = function(arg)
+tbl4.SpeedForced = arg == true
+flag5 = true
+fn45()
+end
+local tbl32 = {
+Name = "Speed Boost",
+Default = false,
+Callback = function()
+if tbl4.SpeedForced and not tbl4.Toggle(createToggle, false) then
+flag5 = true
+flag7 = true
+end
+fn45()
+end,
+}
+createToggle = v15.CreateToggle
+createToggle = createToggle(v15, tbl32)
+local connection3 = RunService.Heartbeat:Connect(function()
+if flag7 then
+flag7 = false
+if type(v.Notify) == "function" then
+pcall(v.Notify, "Speed Boost", "Speed Boost must stay on while Invisibility is on.", 5)
+end
+end
+if not flag5 then return end
+flag5 = false
+local flag8
+if tbl4.SpeedForced and not tbl4.Toggle(createToggle, false) then
+flag6 = true
+flag8 = true
+else
+local flag9 = not tbl4.SpeedForced and flag6
+flag8 = nil
+if flag9 then
+flag6 = false
+flag8 = nil
+if tbl4.Toggle(createToggle, false) then flag8 = false end
+end
+end
+if flag8 ~= nil then
+for _, v16 in ipairs({"Set", "SetValue"}) do
+local ok, result = pcall(function() return createToggle[v16] end)
+if not(ok and type(result) == "function" and pcall(result, createToggle, flag8)) then continue end
+break
+end
+end
+end)
+fn4(function() connection3:Disconnect() end)
+v15:CreateSlider({
+Name = "Boost Speed",
+Min = 20, Max = 1000, Default = 350, Increment = 5, Unit = "studs/s",
+Callback = function(arg) n20 = math.clamp(tonumber(arg) or 350, 20, 1000) end,
+})
+fn4(fn43)
+local v16 = nil
+local connection4 = nil
+local function fn46()
+if connection4 then connection4:Disconnect(); connection4 = nil end
+tbl4.Shield("jump", false)
+end
+v16 = v15:CreateToggle({
+Name = "Infinite Jump",
+Default = false,
+Callback = function()
+if not tbl4.Toggle(v16, false) then fn46(); return end
+if connection4 then return end
+tbl4.Shield("jump", true)
+connection4 = UserInputService.JumpRequest:Connect(function()
+local character = localPlayer.Character
+local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+if humanoid then
+pcall(function() humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end)
+end
+end)
+end,
+})
+fn4(fn46)
+end
+-- Invisibility
+do
+local v14 = nil
+local flag4 = false
+local flag5 = true
+local flag6 = false
+local flag7 = false
+local flag8 = false
+local v15 = nil
+local v16 = nil
+local hipHeight = 999
+local function fn41()
+return flag4 and not tbl4.InvisSuspended and not tbl4.InvisMech
+end
+local function fn42(arg)
+return arg and arg:FindFirstChildOfClass("Humanoid") or nil
+end
+local function fn43(arg)
+return networking:FindFirstChild(arg)
+end
+local function fn44(arg)
+return arg ~= nil and arg:GetAttribute("InvisApplied") == true
+end
+local function fn45()
+local AskDoff = fn43("RF/Treadmill/AskDoff")
+if AskDoff and AskDoff:IsA("RemoteFunction") then
+for i = 1, 2 do pcall(AskDoff.InvokeServer, AskDoff) end
+end
+end
+local function fn46(arg)
+local AskRigWipe = fn43("RE/RigSync/AskRigWipe")
+if AskRigWipe and AskRigWipe:IsA("RemoteEvent") then
+pcall(AskRigWipe.FireServer, AskRigWipe, arg)
+end
+end
+local function fn47(arg)
+local backpack = localPlayer:FindFirstChildOfClass("Backpack")
+for _, child in ipairs(arg:GetChildren()) do
+if child:IsA("Humanoid") then
+pcall(child.UnequipTools, child)
+end
+end
+if backpack then
+for _, child in ipairs(arg:GetChildren()) do
+if child:IsA("Tool") then
+pcall(function() child.Parent = backpack end)
+end
+end
+end
+for i = 1, 3 do RunService.Heartbeat:Wait() end
+end
+local function fn48(arg)
+local v17 = fn42(arg)
+if not arg or not v17 then return false end
+fn47(arg)
+fn45()
+pcall(function()
+v17:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+v17.BreakJointsOnDeath = true
+v17.RequiresNeck = true
+v17.Health = 0
+end)
+pcall(function() v17:ChangeState(Enum.HumanoidStateType.Dead) end)
+pcall(function() arg:BreakJoints() end)
+fn46(arg)
+return true
+end
+local function fn49(parent)
+local v17 = fn42(parent)
+local n20 = os.clock() + 10
+while true do
+if os.clock() < n20 and flag5 and parent.Parent then
+v17 = v17 or fn42(parent)
+if not(v17 and parent:FindFirstChild("HumanoidRootPart") and parent:FindFirstChild("Head")) then
+task.wait()
+continue
+end
+end
+break
+end
+local humanoidRootPart = parent:FindFirstChild("HumanoidRootPart")
+if not fn41() or not v17 or not humanoidRootPart or not parent:FindFirstChild("Head") then
+return false
+end
+task.wait(0.05)
+if not fn41() or parent.Parent == nil then return false end
+for i = 1, 2 do pcall(v17.UnequipTools, v17) end
+if type(replicatesignal) == "function" then
+for i = 1, 2 do pcall(replicatesignal, v17.ServerBreakJoints) end
+end
+local hipHeight2 = v17.HipHeight
+pcall(function() v17.HipHeight = hipHeight end)
+for _, child in ipairs(parent:GetChildren()) do
+if child:IsA("Accessory") or child:IsA("BasePart") and child ~= humanoidRootPart then
+pcall(function() child.Parent = nil end)
+end
+end
+task.wait(0.12)
+local function fn50()
+pcall(function() v17.HipHeight = hipHeight2 end)
+for _, child in ipairs(parent:GetChildren()) do
+if child:IsA("Humanoid") and child.HipHeight ~= hipHeight2 then
+pcall(function() child.HipHeight = hipHeight2 end)
+end
+end
+end
+if parent.Parent == nil then
+fn50()
+return false
+end
+local motor6D = Instance.new("Motor6D")
+motor6D.Name = "RightWrist"
+motor6D.C0 = CFrame.new(1.2, 0, 0)
+motor6D.C1 = CFrame.new()
+motor6D.Part0 = humanoidRootPart
+motor6D.Parent = humanoidRootPart
+local part = Instance.new("Part")
+part.Name = "RightHand"
+part.Size = Vector3.new(0.2, 0.2, 0.2)
+part.Transparency = 1
+part.CanCollide = false
+part.CanTouch = false
+part.CanQuery = false
+part.Massless = true
+part.CFrame = humanoidRootPart.CFrame * motor6D.C0
+motor6D.Part1 = part
+part.Parent = parent
+pcall(function() humanoidRootPart.CanCollide = false end)
+fn50()
+parent:SetAttribute("InvisApplied", true)
+task.delay(1, function()
+local zyroToolKeeper = (typeof(getgenv) == "function" and getgenv() or _G).ZyroToolKeeper
+if parent.Parent and type(zyroToolKeeper) == "function" then
+pcall(zyroToolKeeper)
+end
+end)
+task.delay(0.2, function()
+if humanoidRootPart.Parent then
+pcall(function() humanoidRootPart.CanCollide = true end)
+end
+end)
+local connection2 = parent.ChildAdded:Connect(function(child)
+if child:IsA("Humanoid") then
+task.defer(function()
+if child.HipHeight ~= hipHeight2 then
+pcall(function() child.HipHeight = hipHeight2 end)
+end
+end)
+end
+end)
+local connection3 = nil
+connection3 = parent.AncestryChanged:Connect(function(child, parent2)
+if parent2 == nil then
+connection2:Disconnect()
+connection3:Disconnect()
+end
+end)
+return true
+end
+local function fn50()
+local active = tbl4.Steal.Active or tbl4.Steal.Carrying or tbl4.Flying
+if not active then active = (tbl4.Driving or 0) > 0 end
+return active
+end
+tbl4.RequestRespawn = function() flag8 = true end
+local function fn51()
+flag6 = true
+local v17 = flag8
+while flag5 and (fn50() or not tbl4.ClaimMovement("invisibility")) do
+task.wait(0.2)
+end
+local character = localPlayer.Character
+if flag5 and character and (v17 or fn44(character) ~= fn41()) and fn42(character) then
+flag8 = false
+tbl11.Paused = true
+tbl4.ShieldPaused = true
+pcall(tbl4.UndoSwap)
+task.wait()
+fn48(localPlayer.Character)
+local n20 = os.clock() + 60
+local n21 = os.clock() + 8
+while flag5 and os.clock() < n20 and localPlayer.Character == character do
+if n21 <= os.clock() then
+n21 = os.clock() + 8
+fn46(character)
+end
+task.wait(0.05)
+end
+task.wait(0.1)
+while flag5 and flag7 do task.wait(0.05) end
+end
+tbl11.Paused = false
+tbl4.ShieldPaused = false
+tbl4.ReleaseMovement("invisibility")
+flag6 = false
+end
+local connection2 = localPlayer.CharacterAdded:Connect(function(character)
+if not fn41() then return end
+flag7 = true
+tbl4.ShieldPaused = true
+task.spawn(function()
+pcall(fn49, character)
+flag7 = false
+if not flag6 then tbl4.ShieldPaused = false end
+end)
+end)
+local thread = task.spawn(function()
+while flag5 do
+local character = localPlayer.Character
+local v17 = fn42(character)
+if not flag6 and not flag7 and character and v17 and v17.Health > 0 and (flag8 or fn44(character) ~= fn41()) then
+fn51()
+end
+local v18 = fn44(localPlayer.Character)
+if v18 ~= v15 then
+v15 = v18
+tbl4.SetSpeedForced(v18)
+end
+task.wait(0.25)
+end
+end)
+local connection3 = RunService.Heartbeat:Connect(function()
+local character = localPlayer.Character
+if not character or not fn44(character) then return end
+local rightHand = character:FindFirstChild("RightHand")
+local tool = character:FindFirstChildWhichIsA("Tool")
+local handle = tool and tool:FindFirstChild("Handle")
+if not rightHand or not handle or not handle:IsA("BasePart") then return end
+local cframe = CFrame.new()
+for _, child in ipairs(rightHand:GetChildren()) do
+if child:IsA("JointInstance") and child.Name == "RightGrip" and child.Part1 == handle then
+cframe = child.C0 * child.C1:Inverse()
+if child.Enabled then child.Enabled = false end
+end
+end
+pcall(function()
+handle.CFrame = rightHand.CFrame * cframe
+handle.AssemblyLinearVelocity = Vector3.zero
+handle.AssemblyAngularVelocity = Vector3.zero
+end)
+end)
+fn4(function() connection3:Disconnect() end)
+local connection4 = RunService.Heartbeat:Connect(function()
+local character = localPlayer.Character
+local v17 = fn42(character)
+local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+if not v17 or not humanoidRootPart or v17.Health <= 0 then return end
+local flag9 = fn44(character) and not tbl4.Steal.Active and not tbl4.Flying
+local flag10
+if flag9 then flag10 = (tbl4.Driving or 0) == 0 else flag10 = flag9 end
+if flag10 then flag10 = not(tbl4.Treadmill and tbl4.Treadmill.Riding) end
+if not(flag10 and not v17.Sit and not v17.PlatformStand) then
+if v16 == v17 then
+v16 = nil
+pcall(function() v17.AutoRotate = true end)
+end
+return
+end
+if v17.AutoRotate then pcall(function() v17.AutoRotate = false end) end
+v16 = v17
+local md = v17.MoveDirection
+local vector = Vector3.new(md.X, 0, md.Z)
+if vector.Magnitude > 0.01 then
+pcall(function()
+humanoidRootPart.CFrame = CFrame.lookAt(humanoidRootPart.Position, humanoidRootPart.Position + vector.Unit)
+end)
+end
+end)
+tbl4.InvisibilityHandle = v12:CreateToggle({
+Name = "Invisibility",
+Note = "Makes you invisible to other players",
+Default = false,
+Callback = function()
+local str4 = nil
+if type(tbl4.CombatActive) == "function" and tbl4.CombatActive() then str4 = "Auto Hit" end
+if tbl4.Toggle(v14, false) and str4 then
+flag4 = false
+local v17 = v14
+tbl4.UiDefer(function()
+pcall(v17.Set, v17, false, false)
+tbl4.Notify("Invisibility", "Turn off ".. str4.. " first, both cannot be on at the same time")
+end)
+return
+end
+flag4 = tbl4.Toggle(v14, false) == true
+if fn41() and not fn44(localPlayer.Character) and tbl4.Movement.Owner == nil then
+tbl4.Movement.Owner = "invisibility"
+end
+end,
+})
+fn4(function()
+flag5 = false
+connection2:Disconnect()
+connection4:Disconnect()
+pcall(task.cancel, thread)
+tbl11.Paused = false
+tbl4.ShieldPaused = false
+tbl4.ReleaseMovement("invisibility")
+end)
+end
+-- Anti Ragdoll
+do
+local tbl32 = {BallSocketConstraint = true, NoCollisionConstraint = true, HingeConstraint = true}
+local tbl33 = {
+[Enum.HumanoidStateType.Physics] = true,
+[Enum.HumanoidStateType.Ragdoll] = true,
+[Enum.HumanoidStateType.FallingDown] = true,
+}
+local n20 = 0.5
+local n21 = 5
+local n22 = 0
+local v14 = fn2(function()
+return ReplicatedStorage.Shared.Modules.Ragdoll
+end)
+local v15 = nil
+local function fn41()
+if v15 then return v15 end
+local ok, result = pcall(function()
+return require(localPlayer:WaitForChild("PlayerScripts", 5):WaitForChild("PlayerModule", 5)):GetControls()
+end)
+if ok then v15 = result end
+return v15
+end
+local v16 = nil
+local flag4 = false
+local connection2 = nil
+local n23 = 0
+local fn42 = nil
+local tbl34 = {}
+local tbl35 = {}
+local n24 = 0
+local v17 = nil
+local humanoid = nil
+local function fn43(arg)
+for _, v18 in ipairs(arg) do
+if v18.Connected then v18:Disconnect() end
+end
+table.clear(arg)
+end
+local function fn44(arg) tbl34[#tbl34 + 1] = arg end
+local function fn45(arg) tbl35[#tbl35 + 1] = arg end
+local function fn46()
+if not v17 or not humanoid then return end
+local humanoidRootPart = v17:FindFirstChild("HumanoidRootPart")
+if not humanoidRootPart then return end
+local alv = humanoidRootPart.AssemblyLinearVelocity
+local vector = Vector3.new(alv.X, 0, alv.Z)
+local n25 = humanoid.WalkSpeed + n21
+local y = alv.Y
+local flag5 = false
+if n25 < vector.Magnitude then vector = vector.Unit * n25; flag5 = true end
+if y > n22 then y = n22; flag5 = true end
+if flag5 then
+pcall(function()
+humanoidRootPart.AssemblyLinearVelocity = Vector3.new(vector.X, y, vector.Z)
+end)
+end
+end
+local function fn47()
+if type(v14) ~= "table" then return end
+if type(v14.ClearClientRagdoll) == "function" then pcall(v14.ClearClientRagdoll) end
+if type(v14.Unragdoll) == "function" then pcall(v14.Unragdoll, v17) end
+end
+local function fn48()
+if not v17 or not v17.Parent then return end
+for _, descendant in ipairs(v17:GetDescendants()) do
+if tbl32[descendant.ClassName] then pcall(function() descendant:Destroy() end) end
+end
+end
+local function fn49()
+if not v17 or not v17.Parent then return end
+for _, descendant in ipairs(v17:GetDescendants()) do
+if descendant:IsA("Motor6D") and not descendant.Enabled then
+pcall(function() descendant.Enabled = true end)
+elseif descendant:IsA("AnimationConstraint") and not descendant.Enabled then
+pcall(function() descendant.Enabled = true end)
+end
+end
+end
+local function fn50()
+local v18 = fn41()
+if v18 and v18.controlsEnabled == false then pcall(function() v18:Enable() end) end
+end
+local function fn51()
+local currentCamera = workspace.CurrentCamera
+if currentCamera and humanoid and currentCamera.CameraSubject ~= humanoid then
+pcall(function() currentCamera.CameraSubject = humanoid end)
+end
+end
+local function fn52()
+if not humanoid or not humanoid.Parent or humanoid.Health <= 0 then return end
+if tbl33[humanoid:GetState()] then pcall(function() humanoid:ChangeState(Enum.HumanoidStateType.Running) end) end
+if humanoid.PlatformStand then humanoid.PlatformStand = false end
+end
+local function fn53()
+if type(v14) == "table" and type(v14.IsRagdolled) == "function" then
+local ok, result = pcall(v14.IsRagdolled, v17)
+if ok and result == true then return true end
+end
+local num = tonumber(localPlayer:GetAttribute("RagdollEndTime"))
+return num ~= nil and num > workspace:GetServerTimeNow()
+end
+local n25 = 21
+local function fn54()
+if tbl4.AntiGuard.Busy == true then return true end
+if (tonumber(tbl4.AntiGuard.HitArms) or 0) <= 0 then return false end
+return os.clock() - (tonumber(tbl4.AntiGuard.HitArmedAt) or 0) <= n25
+end
+local function fn55()
+if not humanoid or not humanoid.Parent then return false end
+if humanoid.PlatformStand then return true end
+return tbl33[humanoid:GetState()] == true
+end
+local function fn56()
+if not v17 or not v17.Parent then return false end
+for _, child in ipairs(v17:GetChildren()) do
+if tbl32[child.ClassName] then return true end
+if child:IsA("BasePart") then
+for _, child2 in ipairs(child:GetChildren()) do
+if tbl32[child2.ClassName] then return true end
+end
+end
+end
+end
+return false
+end
+local function fn57()
+fn46()
+fn47()
+fn48()
+fn49()
+fn52()
+fn50()
+fn51()
+end
+local function fn58()
+if not flag4 or fn54() then return end
+n23 = os.clock() + n20
+end
+local function fn59()
+local character = localPlayer.Character
+if character ~= v17 then
+if character then fn42(character)
+else
+n24 += 1
+fn43(tbl35)
+v17 = nil
+humanoid = nil
+end
+return
+end
+if not v17 then return end
+if v17:FindFirstChildOfClass("Humanoid") ~= humanoid then fn42(v17) end
+end
+local function fn60()
+if not flag4 then return end
+fn59()
+if not v17 or not humanoid or humanoid.Health <= 0 then return end
+if fn54() then n23 = 0; return end
+local now = os.clock()
+if fn55() or fn53() or fn56() then n23 = now + n20 end
+if now <= n23 then fn57() end
+end
+fn42 = function(arg)
+n24 += 1
+local v18 = n24
+fn43(tbl35)
+v17 = arg
+humanoid = nil
+if not flag4 or not arg then return end
+humanoid = arg:FindFirstChildOfClass("Humanoid")
+if not flag4 or n24 ~= v18 or arg ~= localPlayer.Character or not humanoid or not humanoid:IsA("Humanoid") then return end
+fn45(humanoid.StateChanged:Connect(function(old, new)
+if flag4 and tbl33[new] then fn58() end
+end))
+fn45(humanoid:GetPropertyChangedSignal("PlatformStand"):Connect(function()
+if flag4 and humanoid and humanoid.PlatformStand then fn58() end
+end))
+fn45(arg.DescendantAdded:Connect(function(descendant)
+if flag4 and tbl32[descendant.ClassName] then fn58() end
+end))
+fn45(arg.ChildAdded:Connect(function(child)
+if flag4 and child:IsA("Humanoid") and child ~= humanoid then task.defer(fn59) end
+end))
+fn51()
+if fn53() then fn58() end
+end
+local function fn61()
+flag4 = false
+n24 += 1
+n23 = 0
+if connection2 then pcall(function() connection2:Disconnect() end); connection2 = nil end
+fn43(tbl35)
+fn43(tbl34)
+v17 = nil
+humanoid = nil
+end
+local function fn62()
+fn61()
+flag4 = true
+fn41()
+connection2 = RunService.Heartbeat:Connect(fn60)
+fn44(localPlayer.CharacterAdded:Connect(function(character)
+if flag4 then
+task.defer(function()
+if flag4 and character == localPlayer.Character then fn42(character) end
+end)
+end
+end))
+fn44(localPlayer.CharacterRemoving:Connect(function(character)
+if flag4 and character == v17 then
+n24 += 1
+n23 = 0
+fn43(tbl35)
+v17 = nil
+humanoid = nil
+end
+end))
+fn44(localPlayer:GetAttributeChangedSignal("RagdollEndTime"):Connect(function()
+if flag4 then fn58() end
+end))
+local clientRagdollRemote = type(v14) == "table" and v14.ClientRagdollRemote or nil
+if typeof(clientRagdollRemote) == "Instance" and clientRagdollRemote:IsA("RemoteEvent") then
+fn44(clientRagdollRemote.OnClientEvent:Connect(function()
+if flag4 and not fn54() then
+fn46()
+fn58()
+end
+end))
+end
+fn44(tbl4.OnHumanoidChanged(function()
+if flag4 and localPlayer.Character then fn42(localPlayer.Character) end
+end))
+if localPlayer.Character then fn42(localPlayer.Character) end
+end
+fn4(fn61)
+v16 = v12:CreateToggle({
+Name = "Anti Ragdoll",
+Default = true,
+Callback = function()
+if tbl4.Toggle(v16, false) then fn62() else fn61() end
+end,
+})
+end
+-- Auto Heal (God mode passivo)
+do
+local flag4 = false
+local tbl32 = {}
+local function fn41()
+for _, v14 in ipairs(tbl32) do pcall(function() v14:Disconnect() end) end
+table.clear(tbl32)
+end
+local function fn42(arg)
+if flag4 and arg.Parent and arg.Health > 0 and arg.Health < arg.MaxHealth then
+pcall(function() arg.Health = arg.MaxHealth end)
+end
+end
+local function fn43(arg)
+fn41()
+if not flag4 or not arg then return end
+local humanoid = arg:FindFirstChildOfClass("Humanoid") or arg:WaitForChild("Humanoid", 5)
+if not flag4 or not humanoid or not humanoid:IsA("Humanoid") or arg ~= localPlayer.Character then return end
+table.insert(tbl32, humanoid.HealthChanged:Connect(function() fn42(humanoid) end))
+table.insert(tbl32, RunService.Heartbeat:Connect(function() fn42(humanoid) end))
+fn42(humanoid)
+end
+local connection2 = localPlayer.CharacterAdded:Connect(function(character)
+if flag4 then task.defer(fn43, character) end
+end)
+local v14 = tbl4.OnHumanoidChanged(function()
+if flag4 and localPlayer.Character then fn43(localPlayer.Character) end
+end)
+fn4(function()
+flag4 = false
+connection2:Disconnect()
+v14:Disconnect()
+fn41()
+end)
+flag4 = true
+if localPlayer.Character then task.spawn(fn43, localPlayer.Character) end
+end
+-- Anti Trap
+do
+local v14 = nil
+local flag4 = true
+local tbl32 = {}
+local tbl33 = {}
+local function fn41(arg)
+if arg:IsA("BasePart") and tbl32[arg] == nil then
+tbl32[arg] = arg.CanTouch
+pcall(function() arg.CanTouch = false end)
+end
+end
+local function fn42(arg)
+if not flag4 or not arg.Parent then return end
+local name = localPlayer.Name
+if arg:GetAttribute("Owner") == name then return end
+fn41(arg)
+for _, descendant in ipairs(arg:GetDescendants()) do fn41(descendant) end
+table.insert(tbl33, arg.DescendantAdded:Connect(function(descendant)
+if flag4 then fn41(descendant) end
+end))
+end
+local function fn43()
+for _, v15 in ipairs(CollectionService:GetTagged("PlacedTrap")) do fn42(v15) end
+end
+local function fn44()
+for k, v15 in pairs(tbl32) do
+if k.Parent then pcall(function() k.CanTouch = v15 end) end
+end
+table.clear(tbl32)
+end
+table.insert(tbl33, CollectionService:GetInstanceAddedSignal("PlacedTrap"):Connect(function(arg)
+task.defer(fn42, arg)
+end))
+v14 = v12:CreateToggle({
+Name = "Anti Trap",
+Note = "Traps from other players cannot catch you",
+Default = true,
+Callback = function()
+flag4 = tbl4.Toggle(v14, true) == true
+if flag4 then fn43() else fn44() end
+end,
+})
+fn43()
+fn4(function()
+flag4 = false
+for _, v15 in ipairs(tbl33) do pcall(function() v15:Disconnect() end) end
+table.clear(tbl33)
+fn44()
+end)
+end
+-- Instant Prompts
+do
+local v14 = nil
+local str4 = "CarryAreaEgg"
+local tbl32 = {ClaimLostPart = true}
+local tbl33 = {}
+local connection2 = nil
+local connection3 = nil
+local function fn41(arg)
+if not arg:IsA("ProximityPrompt") or tbl32[arg.Name] then return end
+if tbl33[arg] == nil then
+if arg.HoldDuration <= 0 and arg.Name ~= str4 then return end
+tbl33[arg] = arg.HoldDuration
+end
+if arg.HoldDuration ~= 0 then pcall(function() arg.HoldDuration = 0 end) end
+end
+local function fn42(arg)
+if arg.Name ~= "SmartPromptPart" then return nil end
+local carryAreaEgg = arg:FindFirstChild("CarryAreaEgg")
+return carryAreaEgg and carryAreaEgg:IsA("ProximityPrompt") and carryAreaEgg or nil
+end
+tbl4.PromptHold = function(arg)
+local v15 = tbl33[arg]
+if type(v15) == "number" then return v15 end
+return arg.HoldDuration
+end
+local function fn43()
+if connection2 then return end
+connection3 = ProximityPromptService.PromptShown:Connect(function(arg)
+if tbl4.Toggle(v14, true) then fn41(arg) end
+end)
+for _, child in ipairs(workspace:GetChildren()) do
+local v15 = fn42(child)
+if v15 then fn41(v15) end
+end
+connection2 = workspace.ChildAdded:Connect(function(child)
+if child.Name ~= "SmartPromptPart" then return end
+task.defer(function()
+local carryAreaEgg = child:FindFirstChild("CarryAreaEgg") or child:WaitForChild("CarryAreaEgg", 2)
+if carryAreaEgg and carryAreaEgg:IsA("ProximityPrompt") and tbl4.Toggle(v14, true) then
+fn41(carryAreaEgg)
+end
+end)
+end)
+end
+local function fn44()
+for k, v15 in pairs(tbl33) do
+if k and k.Parent then pcall(function() k.HoldDuration = v15 end) end
+end
+table.clear(tbl33)
+if connection2 then connection2:Disconnect(); connection2 = nil end
+if connection3 then connection3:Disconnect(); connection3 = nil end
+end
+tbl4.PressStealPrompt = function(arg)
+if typeof(fireproximityprompt) ~= "function" or not arg then return false end
+local v15 = nil
+local huge = math.huge
+for _, child in ipairs(workspace:GetChildren()) do
+local v16 = fn42(child)
+if v16 and child:IsA("BasePart") then
+local magnitude = (child.Position - arg).Magnitude
+if magnitude < huge then v15 = v16; huge = magnitude end
+end
+end
+if not v15 or huge > 14 then return false end
+if tbl4.Toggle(v14, true) then pcall(function() v15.HoldDuration = 0 end) end
+local ok = pcall(fireproximityprompt, v15)
+if ok and v15.HoldDuration > 0 then task.wait(v15.HoldDuration + 0.1) end
+return ok
+end
+tbl3.Add(function()
+if tbl4.Toggle(v14, true) then
+fn43()
+for k in pairs(tbl33) do
+if not k.Parent then tbl33[k] = nil
+elseif k.HoldDuration ~= 0 then pcall(function() k.HoldDuration = 0 end) end
+end
+elseif next(tbl33) ~= nil or connection2 then fn44() end
+return false
+end)
+v14 = v12:CreateToggle({
+Name = "Instant Prompts",
+Default = true,
+Callback = function() tbl3.Wake() end,
+})
+fn4(fn44)
+end
+-- ============================================================
+-- ZYRO HUB — EXTRA C/4 PARTE 2: Misc (FPS, Optimizer, Anti-AFK)
+-- ============================================================
+do
+local v13 = v2:CreateTab({Name = "Misc", SectionsExpanded = true})
+local v14 = v13:CreateSection({Name = "Performance", Expanded = true})
+local flag2 = false
+v14:CreateSlider({
+Name = "FPS Cap",
+Min = 30, Max = 1000, Default = 240, AllowDecimals = false, Increment = 1, Unit = " FPS",
+Callback = function(arg)
+local n13 = math.clamp(math.floor(tonumber(arg) or 240), 30, 1000)
+if type(setfpscap) == "function" and pcall(setfpscap, n13) then
+flag2 = false
+return
+end
+if not flag2 then
+flag2 = true
+fn15("FPS Cap Unavailable", "This environment does not support setfpscap.")
+end
+end,
+})
+do
+local Lighting = game:GetService("Lighting")
+local n13 = 0.003
+local flag3 = false
+local n14 = 0
+local thread = nil
+local tbl16 = {}
+local tbl17 = {}
+local obj = setmetatable({}, {__mode = "k"})
+local tbl18 = {}
+local connection = nil
+local function fn16(arg, arg2, arg3)
+local ok, result = pcall(arg)
+if not ok then return end
+tbl17[#tbl17 + 1] = {Setter = arg2, Value = result}
+pcall(arg2, arg3)
+end
+local function fn17(arg, arg2, arg3)
+local tbl19 = obj[arg]
+if not tbl19 then
+tbl19 = {}
+obj[arg] = tbl19
+end
+if tbl19[arg2] == nil then
+local ok, result = pcall(function() return arg[arg2] end)
+if not ok then return end
+tbl19[arg2] = {Value = result}
+end
+pcall(function() arg[arg2] = arg3 end)
+end
+local function fn18(arg)
+if not flag3 or not arg.Parent then return end
+if arg:IsA("ParticleEmitter") then
+fn17(arg, "Enabled", false)
+fn17(arg, "Rate", 0)
+elseif arg:IsA("Trail") or arg:IsA("Beam") then
+fn17(arg, "Enabled", false)
+elseif arg:IsA("PointLight") or arg:IsA("SpotLight") or arg:IsA("SurfaceLight") then
+fn17(arg, "Enabled", false)
+fn17(arg, "Brightness", 0)
+elseif arg:IsA("Fire") or arg:IsA("Smoke") or arg:IsA("Sparkles") then
+fn17(arg, "Enabled", false)
+elseif arg:IsA("Explosion") then
+fn17(arg, "Visible", false)
+elseif arg:IsA("SpecialMesh") then
+fn17(arg, "TextureId", "")
+elseif arg:IsA("Decal") or arg:IsA("Texture") then
+if not(arg.Name == "face" and arg.Parent and arg.Parent.Name == "Head") then
+fn17(arg, "Transparency", 1)
+end
+elseif arg:IsA("MeshPart") then
+fn17(arg, "RenderFidelity", Enum.RenderFidelity.Performance)
+fn17(arg, "TextureID", "")
+fn17(arg, "CastShadow", false)
+fn17(arg, "Reflectance", 0)
+fn17(arg, "Material", Enum.Material.SmoothPlastic)
+elseif arg:IsA("BasePart") then
+fn17(arg, "CastShadow", false)
+fn17(arg, "Reflectance", 0)
+fn17(arg, "Material", Enum.Material.SmoothPlastic)
+elseif arg:IsA("PostEffect") then
+fn17(arg, "Enabled", false)
+elseif arg:IsA("Clouds") then
+fn17(arg, "Cover", 0)
+fn17(arg, "Density", 0)
+elseif arg:IsA("Atmosphere") then
+fn17(arg, "Density", 0)
+fn17(arg, "Haze", 0)
+fn17(arg, "Glare", 0)
+end
+end
+local function fn19()
+for _, v15 in ipairs(tbl16) do
+if v15.Connected then v15:Disconnect() end
+end
+table.clear(tbl16)
+if connection then pcall(function() connection:Disconnect() end); connection = nil end
+end
+local function fn20()
+local rendering = settings().Rendering
+local terrain = workspace.Terrain
+local function fn21(arg, arg2, arg3)
+fn16(function() return arg[arg2] end, function(arg4) arg[arg2] = arg4 end, arg3)
+end
+fn21(rendering, "QualityLevel", Enum.QualityLevel.Level01)
+fn21(rendering, "MeshPartDetailLevel", Enum.MeshPartDetailLevel.Level01)
+fn21(rendering, "EditQualityLevel", Enum.QualityLevel.Level01)
+local ok, result = pcall(function() return UserSettings():GetService("UserGameSettings") end)
+if ok and result then fn21(result, "SavedQualityLevel", Enum.SavedQualitySetting.QualityLevel1) end
+fn21(Lighting, "GlobalShadows", false)
+fn21(Lighting, "ShadowSoftness", 0)
+fn21(Lighting, "FogEnd", 9e9)
+fn21(Lighting, "Technology", Enum.Technology.Legacy)
+fn21(Lighting, "EnvironmentDiffuseScale", 0)
+fn21(Lighting, "EnvironmentSpecularScale", 0)
+fn21(terrain, "Decoration", false)
+fn21(terrain, "WaterWaveSize", 0)
+fn21(terrain, "WaterWaveSpeed", 0)
+fn21(terrain, "WaterReflectance", 0)
+fn21(terrain, "WaterTransparency", 1)
+end
+local function fn21(arg, arg2)
+local now = os.clock()
+for _, descendant in ipairs(arg:GetDescendants()) do
+if not flag3 or n14 ~= arg2 then return false end
+fn18(descendant)
+if n13 < os.clock() - now then
+RunService.Heartbeat:Wait()
+now = os.clock()
+end
+end
+return true
+end
+local function fn22()
+if not flag3 or #tbl18 == 0 then return end
+local now = os.clock()
+while #tbl18 > 0 do
+local v15 = table.remove(tbl18)
+fn18(v15)
+if not(n13 < os.clock() - now) then continue end
+break
+end
+end
+local function fn23()
+local now = os.clock()
+for k, v15 in pairs(obj) do
+if k.Parent then
+for k2, v16 in pairs(v15) do
+pcall(function() k[k2] = v16.Value end)
+end
+end
+obj[k] = nil
+if n13 < os.clock() - now then
+RunService.Heartbeat:Wait()
+now = os.clock()
+end
+end
+end
+local function fn24()
+if not flag3 then return end
+flag3 = false
+n14 += 1
+fn19()
+table.clear(tbl18)
+if thread then pcall(task.cancel, thread); thread = nil end
+fn23()
+for i = #tbl17, 1, -1 do
+local v15 = tbl17[i]
+pcall(v15.Setter, v15.Value)
+end
+table.clear(tbl17)
+end
+local function fn25()
+if flag3 then return end
+flag3 = true
+n14 += 1
+local v15 = n14
+fn20()
+local function fn26(arg)
+tbl16[#tbl16 + 1] = arg.DescendantAdded:Connect(function(descendant)
+if flag3 and n14 == v15 then tbl18[#tbl18 + 1] = descendant end
+end)
+end
+fn26(workspace)
+fn26(Lighting)
+connection = RunService.Heartbeat:Connect(function()
+if flag3 and n14 == v15 then fn22() end
+end)
+thread = task.spawn(function()
+if fn21(workspace, v15) then fn21(Lighting, v15) end
+end)
+end
+fn4(fn24)
+v14:CreateToggle({
+Name = "Optimizer",
+Note = "Strip shadows, textures and effects for the highest FPS",
+Default = false,
+Callback = function(arg)
+if arg then fn25() else task.spawn(fn24) end
+end,
+})
+end
+-- FPS/Ping counter
+do
+local Stats = game:GetService("Stats")
+local n13 = 132
+local n14 = 0.085
+local n15 = 0.2
+local n16 = 8
+local v15 = v2:CreateState({Name = "FPS and Ping Position", Default = {}})
+local function fn16()
+local v16 = v15:Get()
+if type(v16) == "table" and type(v16.XOffset) == "number" and type(v16.YOffset) == "number" then
+return UDim2.new(tonumber(v16.XScale) or 0, v16.XOffset, tonumber(v16.YScale) or 0, v16.YOffset)
+end
+return UDim2.new(0, 16, 0, 16)
+end
+local function fn17(arg)
+v15:Set({XScale = arg.X.Scale, XOffset = arg.X.Offset, YScale = arg.Y.Scale, YOffset = arg.Y.Offset})
+end
+local color3 = Color3.fromRGB(58, 255, 55)
+local color4 = Color3.fromRGB(255, 214, 84)
+local color5 = Color3.fromRGB(255, 96, 96)
+local color6 = Color3.fromRGB(150, 150, 158)
+local flag3 = false
+local tbl16 = {}
+local screenGui = nil
+local frame = nil
+local uiScale = nil
+local v16 = nil
+local v17 = nil
+local n17 = 1
+local n18 = 0
+local n19 = 0
+local v18 = nil
+local v19 = nil
+local font = nil
+pcall(function()
+font = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold, Enum.FontStyle.Normal)
+end)
+local function fn18(arg)
+if arg >= 100 then return color3 end
+if arg >= 50 then return color4 end
+return color5
+end
+local function fn19(arg)
+if arg <= 90 then return color3 end
+if arg <= 180 then return color4 end
+return color5
+end
+local function fn20()
+if not uiScale then return end
+local cc = workspace.CurrentCamera
+cc = cc and cc.ViewportSize or Vector2.new(1280, 720)
+if cc.X < 1 then cc = Vector2.new(1280, 720) end
+uiScale.Scale = math.clamp(cc.X * n14 / n13, 0.7, 1.4) * n17
+end
+local function fn21()
+for _, v20 in ipairs(tbl16) do pcall(function() v20:Disconnect() end) end
+table.clear(tbl16)
+if screenGui then pcall(function() screenGui:Destroy() end) end
+screenGui = nil
+frame = nil
+uiScale = nil
+v16 = nil
+v17 = nil
+v18 = nil
+v19 = nil
+n18 = 0
+end
+local function createTextLabel(parent, arg, arg2, textColor3)
+local textLabel = Instance.new("TextLabel")
+textLabel.Name = fn3()
+textLabel.BackgroundTransparency = 1
+textLabel.Position = UDim2.fromOffset(arg, 9)
+textLabel.Size = UDim2.fromOffset(arg2, 16)
+textLabel.Text = ""
+textLabel.TextColor3 = textColor3
+textLabel.TextScaled = true
+textLabel.TextXAlignment = Enum.TextXAlignment.Left
+if font then textLabel.FontFace = font else textLabel.Font = Enum.Font.GothamBold end
+textLabel.Parent = parent
+return textLabel
+end
+local function fn22()
+fn21()
+screenGui = Instance.new("ScreenGui")
+screenGui.Name = fn3()
+screenGui.Archivable = false
+screenGui.DisplayOrder = 58
+screenGui.IgnoreGuiInset = true
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+frame = Instance.new("Frame")
+frame.Name = fn3()
+frame.Active = true
+frame.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+frame.BackgroundTransparency = 0.28
+frame.BorderSizePixel = 0
+frame.Position = fn16()
+frame.Size = UDim2.fromOffset(132, 34)
+frame.Parent = screenGui
+local uiCorner = Instance.new("UICorner")
+uiCorner.Name = fn3()
+uiCorner.CornerRadius = UDim.new(0, 12)
+uiCorner.Parent = frame
+local uiStroke = Instance.new("UIStroke")
+uiStroke.Name = fn3()
+uiStroke.Color = Color3.fromRGB(255, 255, 255)
+uiStroke.Thickness = 1
+uiStroke.Transparency = 0.9
+uiStroke.Parent = frame
+uiScale = Instance.new("UIScale")
+uiScale.Name = fn3()
+uiScale.Parent = frame
+fn20()
+v16 = createTextLabel(frame, 12, 34, color3)
+createTextLabel(frame, 48, 22, color6).Text = "FPS"
+local frame2 = Instance.new("Frame")
+frame2.Name = fn3()
+frame2.AnchorPoint = Vector2.new(0.5, 0.5)
+frame2.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+frame2.BackgroundTransparency = 0.85
+frame2.BorderSizePixel = 0
+frame2.Position = UDim2.new(0, 74, 0.5, 0)
+frame2.Size = UDim2.fromOffset(1, 14)
+frame2.Parent = frame
+v17 = createTextLabel(frame, 82, 30, color3)
+createTextLabel(frame, 113, 14, color6).Text = "ms"
+screenGui.Parent = v3
+local cc = workspace.CurrentCamera
+if cc then tbl16[#tbl16 + 1] = cc:GetPropertyChangedSignal("ViewportSize"):Connect(fn20) end
+local flag4 = false
+local v20 = nil
+local vector2 = Vector2.zero
+local position = nil
+tbl16[#tbl16 + 1] = frame.InputBegan:Connect(function(input)
+if flag4 or input.UserInputState ~= Enum.UserInputState.Begin then return end
+local flag5 = input.UserInputType == Enum.UserInputType.Touch
+if not(input.UserInputType == Enum.UserInputType.MouseButton1) and not flag5 then return end
+flag4 = true
+v20 = flag5 and input or nil
+vector2 = Vector2.new(input.Position.X, input.Position.Y)
+position = frame.Position
+end)
+tbl16[#tbl16 + 1] = UserInputService.InputChanged:Connect(function(input)
+if not flag4 or not frame or not position then return end
+if not(v20 and input == v20 or not v20 and input.UserInputType == Enum.UserInputType.MouseMovement) then return end
+local n20 = Vector2.new(input.Position.X, input.Position.Y) - vector2
+frame.Position = UDim2.new(position.X.Scale, position.X.Offset + n20.X, position.Y.Scale, position.Y.Offset + n20.Y)
+end)
+tbl16[#tbl16 + 1] = UserInputService.InputEnded:Connect(function(input)
+if not flag4 then return end
+local flag5 = v20 and input == v20
+local flag6
+if flag5 then flag6 = flag5 else flag6 = not v20 and input.UserInputType == Enum.UserInputType.MouseButton1 end
+if flag6 then
+flag4 = false
+v20 = nil
+position = nil
+if frame then fn17(frame.Position) end
+end
+end)
+tbl16[#tbl16 + 1] = RunService.RenderStepped:Connect(function(deltaTime)
+if not flag3 or not v16 then return end
+local n20 = math.clamp(deltaTime, 0.001, 1)
+local n21 = 1 / n20
+if n18 <= 0 then n18 = n21
+else n18 += (n21 - n18) * (1 - math.exp(-n20 * n16)) end
+local now = os.clock()
+if now < n19 then return end
+n19 = now + n15
+local n22 = math.floor(n18 + 0.5)
+local text = tostring(n22)
+if text ~= v18 then
+v18 = text
+v16.Text = text
+v16.TextColor3 = fn18(n22)
+end
+local n23 = 0
+pcall(function() n23 = Stats.Network.ServerStatsItem["Data Ping"]:GetValue() end)
+local n24 = math.floor(n23 + 0.5)
+local text2 = tostring(n24)
+if text2 ~= v19 then
+v19 = text2
+v17.Text = text2
+v17.TextColor3 = fn19(n24)
+end
+end)
+end
+v14:CreateSlider({
+Name = "FPS and Ping Size",
+Min = 60, Max = 160, Default = 100, AllowDecimals = false, Increment = 1, Unit = "%",
+SubOf = v14:CreateToggle({
+Name = "FPS and Ping",
+Default = true,
+Callback = function(arg)
+flag3 = arg == true
+if flag3 then fn22() else fn21() end
+end,
+}),
+Callback = function(arg)
+n17 = math.clamp((tonumber(arg) or 100) / 100, 0.6, 1.6)
+fn20()
+end,
+})
+fn4(fn21)
+end
+-- Anti AFK
+do
+local v15 = v13:CreateSection({Name = "Utility", Expanded = true})
+local tbl16 = {Enabled = true, Alive = true, Silenced = {}}
+local function fn16()
+if type(getconnections) ~= "function" then return {} end
+local ok, result = pcall(getconnections, localPlayer.Idled)
+return ok and type(result) == "table" and result or {}
+end
+local function fn17()
+for _, v16 in ipairs(fn16()) do
+if pcall(function() v16:Disable() end) then
+tbl16.Silenced[#tbl16.Silenced + 1] = v16
+end
+end
+end
+local function fn18()
+local silenced = tbl16.Silenced
+if #silenced == 0 then silenced = fn16() end
+for _, v16 in ipairs(silenced) do
+pcall(function() v16:Enable() end)
+end
+table.clear(tbl16.Silenced)
+end
+local obj = setmetatable({}, {__index = function() return function() end end})
+local tbl17 = {}
+local function fn19()
+local tbl18 = {}
+if type(getgc) ~= "function" or type(debug) ~= "table" or type(debug.getupvalues) ~= "function" then
+return tbl18
+end
+local ok, result = pcall(getgc, false)
+if not ok or type(result) ~= "table" then return tbl18 end
+for _, v16 in ipairs(result) do
+if type(v16) == "function" and islclosure(v16) then
+local ok2, result2 = pcall(debug.info, v16, "s")
+if ok2 and type(result2) == "string" and string.find(result2, "AntiAFK", 1, true) then
+local ok3, result3 = pcall(debug.getupvalues, v16)
+if ok3 and type(result3) == "table" then
+for k, v17 in pairs(result3) do
+if typeof(v17) == "Instance" and v17.ClassName == "TeleportService" then
+tbl18[#tbl18 + 1] = {Fn = v16, Index = k, Original = v17}
+end
+end
+end
+end
+end
+end
+return tbl18
+end
+local function fn20()
+for _, v16 in ipairs(fn19()) do
+local ok, result = pcall(debug.getupvalue, v16.Fn, v16.Index)
+if ok and typeof(result) == "Instance" then
+if pcall(debug.setupvalue, v16.Fn, v16.Index, obj) then
+tbl17[#tbl17 + 1] = v16
+end
+end
+end
+end
+local function fn21()
+for _, v16 in ipairs(tbl17) do
+pcall(debug.setupvalue, v16.Fn, v16.Index, v16.Original)
+end
+table.clear(tbl17)
+end
+local function fn22()
+fn17()
+if #tbl17 == 0 then fn20() end
+end
+local connection = localPlayer.CharacterAdded:Connect(function()
+task.delay(1, function()
+if tbl16.Alive and tbl16.Enabled then
+table.clear(tbl16.Silenced)
+pcall(fn22)
+end
+end)
+end)
+fn4(function() pcall(function() connection:Disconnect() end) end)
+fn4(function()
+tbl16.Alive = false
+fn18()
+fn21()
+end)
+task.spawn(function()
+while tbl16.Alive do
+if tbl16.Enabled then fn22() end
+task.wait(600)
+end
+end)
+v15:CreateToggle({
+Name = "Anti AFK",
+Default = true,
+Callback = function(arg)
+tbl16.Enabled = arg ~= false
+if tbl16.Enabled then fn22()
+else fn18(); fn21() end
+end,
+})
+end
+end-- ============================================================
+-- ZYRO HUB — EXTRA D/4: Combat + ESP + AntiGuard UI + Finalize
+-- ============================================================
+tbl4.Combat = {}
+local combat
+combat = tbl4.Combat
+do
+local n20 = 15
+local n21 = 2
+local n22 = 0.05
+local n23 = 1
+local n24 = 0.18
+local n25 = -0.275
+local n26 = 0.6
+local n27 = 6
+local n28 = 1.1
+local n29 = 0.8
+local n30 = 2.5
+local n31 = 35
+local n32 = 0.12
+local n33 = 6
+local n34 = 6
+local n35 = 3
+local tbl32 = {0.12, 0.2, 0.28, 0.36, 0.46, 0.6}
+local tbl33 = {["WALL LEFT"] = true, ["WALL RIGHT"] = true}
+local tbl34 = {
+Trigger = nil,
+LastFire = 0,
+Trace = 0,
+EquipAt = 0,
+Walls = {},
+WallsAt = 0,
+WallSide = setmetatable({}, {__mode = "k"}),
+Tracks = setmetatable({}, {__mode = "k"}),
+Stats = {},
+Option = 3,
+Pending = {},
+Holders = {},
+SpawnRagdoll = nil,
+}
+for i = 1, #tbl32 do
+tbl34.Stats[i] = {Hits = 0, Shots = 0}
+end
+local raycastParams = RaycastParams.new()
+raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+pcall(function() raycastParams.RespectCanCollide = true end)
+local function fn41() return workspace:GetServerTimeNow() end
+local function fn42()
+local trigger = tbl34.Trigger
+if trigger and trigger.Parent then return trigger end
+local reBatSwingTrigger = networking:FindFirstChild("RE/BatSwing/Trigger")
+tbl34.Trigger = reBatSwingTrigger
+return reBatSwingTrigger
+end
+local function fn43(arg) return tonumber(arg:GetAttribute("RagdollEndTime")) or 0 end
+combat.SetLead = function(arg)
+n25 = math.clamp((tonumber(arg) or -275) / 1000, -0.4, 0.1)
+end
+combat.SetSweep = function(arg)
+n26 = math.clamp((tonumber(arg) or 60) / 100, 0, 2.5)
+end
+combat.Ragdolled = function(arg)
+return fn43(arg) > fn41()
+end
+combat.SelfRagdolled = function()
+local v14 = fn43(localPlayer)
+if v14 <= fn41() then return false end
+return v14 ~= tbl34.SpawnRagdoll
+end
+combat.Humanoid = function(arg)
+if not arg then return nil end
+local v14 = nil
+for _, child in ipairs(arg:GetChildren()) do
+if child:IsA("Humanoid") then
+if child.Health > 0 then return child end
+v14 = v14 or child
+end
+end
+return v14
+end
+local function fn44(arg)
+local gears = tbl.Gears
+local directory = type(gears) == "table" and gears.Directory or nil
+local flag4 = type(directory) == "table"
+if flag4 then flag4 = directory[tostring(arg:GetAttribute("GearName") or arg.Name)] end
+flag4 = flag4 or nil
+local batControllerData = type(flag4) == "table" and flag4.BatControllerData or nil
+return type(batControllerData) == "table" and tonumber(batControllerData.RangeBonus) or 0
+end
+combat.Range = function(arg)
+local n36 = workspace:GetAttribute("DragonEggEventActive") == true and 2.5 or 1
+return (n20 + n21 + (arg and fn44(arg) or 0)) * n36
+end
+combat.PickBat = function(arg)
+local tool = arg:FindFirstChildWhichIsA("Tool")
+if tool and tbl4.IsBatTool(tool) then return tool end
+local v14, v15, v16 = ipairs({arg, localPlayer:FindFirstChildOfClass("Backpack")})
+local n36 = -1
+local v17 = nil
+for _, v18 in v14, v15, v16 do
+if v18 then
+for _, child in ipairs(v18:GetChildren()) do
+if tbl4.IsBatTool(child) then
+local v19 = fn44(child)
+if n36 < v19 then n36 = v19; v17 = child end
+end
+end
+end
+end
+return v17
+end
+local function fn45(parent, arg, arg2)
+if arg2.Parent == parent then return true end
+local equipAt = tbl34.EquipAt
+if os.clock() - equipAt < 0.2 then return false end
+tbl34.EquipAt = os.clock()
+pcall(function() arg:EquipTool(arg2) end)
+if arg2.Parent ~= parent then pcall(function() arg2.Parent = parent end) end
+return arg2.Parent == parent
+end
+combat.Parts = function(arg)
+arg = arg and arg.Character
+local humanoidRootPart = arg and arg:FindFirstChild("HumanoidRootPart")
+local humanoid = arg and arg:FindFirstChildOfClass("Humanoid")
+if not humanoidRootPart or not humanoid or humanoid.Health <= 0 then return nil, nil end
+return arg, humanoidRootPart
+end
+combat.Hittable = function(arg)
+if not arg or arg == localPlayer or arg.Parent ~= Players then return false end
+local v14, v15 = combat.Parts(arg)
+if not v14 then return false end
+if v14:GetAttribute("IsTrapped") == true or arg:GetAttribute("InBossArena") then return false end
+return not tbl4.InsideBase(v15.Position)
+end
+local function fn46()
+local wallsAt = tbl34.WallsAt
+if os.clock() < wallsAt then return tbl34.Walls end
+tbl34.WallsAt = os.clock() + 5
+local walls = {}
+local world = workspace:FindFirstChild("World") or workspace:FindFirstChild("__OBJECTS")
+world = world and world:FindFirstChild("Build")
+if world then
+for _, child in ipairs(world:GetChildren()) do
+local collisions = child:FindFirstChild("COLLISIONS")
+collisions = collisions and collisions:FindFirstChild("GUARD NO COLLIDE")
+if collisions then
+for _, child2 in ipairs(collisions:GetChildren()) do
+if tbl33[child2.Name] then
+if child2:IsA("BasePart") then table.insert(walls, child2) end
+for _, descendant in ipairs(child2:GetDescendants()) do
+if descendant:IsA("BasePart") then table.insert(walls, descendant) end
+end
+end
+end
+end
+end
+end
+tbl34.Walls = walls
+return walls
+end
+local function fn47(arg)
+if arg.X <= arg.Y and arg.X <= arg.Z then return "X", "Y", "Z" end
+if arg.Y <= arg.Z then return "Y", "X", "Z" end
+return "Z", "X", "Y"
+end
+local function fn48(arg)
+local n36 = math.abs(arg.RightVector.Y)
+local n37 = math.abs(arg.UpVector.Y)
+local n38 = math.abs(arg.LookVector.Y)
+if n36 >= n37 and n36 >= n38 then return "X" end
+if n38 <= n37 then return "Y" end
+return "Z"
+end
+local function fn49(arg, arg2, arg3, arg4)
+if arg3 == arg4 then return true end
+local n36 = arg2[arg3] + n33
+return math.abs(arg[arg3]) <= n36
+end
+local function fn50(arg, arg2)
+for _, v14 in ipairs(fn46()) do
+if v14.Parent then
+local cFrame = v14.CFrame
+local size = v14.Size
+local v15, v16, v17 = fn47(size)
+local v18 = fn48(cFrame)
+local n36 = size / 2
+local v19 = cFrame:PointToObjectSpace(arg2)
+if fn49(v19, n36, v16, v18) and fn49(v19, n36, v17, v18) then
+local v20 = cFrame:PointToObjectSpace(arg)
+local n37 = math.abs(v20[v15])
+local n38 = tbl34.WallSide[v14]
+if n37 >= n36[v15] + n33 * 0.5 or n38 == nil and n37 >= n36[v15] then
+n38 = v20[v15] >= 0 and 1 or -1
+tbl34.WallSide[v14] = n38
+elseif n38 == nil then
+n38 = v20[v15] >= 0 and 1 or -1
+end
+local n39 = n36[v15] + n33
+if v19[v15] * n38 < n39 then
+local tbl35 = {X = v19.X, Y = v19.Y, Z = v19.Z, [v15] = n38 * n39}
+arg2 = cFrame:PointToWorldSpace(Vector3.new(tbl35.X, tbl35.Y, tbl35.Z))
+end
+end
+end
+end
+return arg2
+end
+combat.KeepOffWalls = function(arg, arg2)
+local v14 = fn50(arg, arg2)
+local n36 = v14 - arg
+if n33 < n36.Magnitude then
+local v15 = arg
+for i = 1, 6 do
+local n37 = arg + n36 * i / n34
+local v16 = fn50(v15, n37)
+if (v16 - n37).Magnitude > 0.01 then return fn50(arg, v16) end
+v15 = v16
+end
+end
+return v14
+end
+combat.ResetWalls = function()
+table.clear(tbl34.WallSide)
+end
+local n36 = 0
+local v14 = nil
+local function fn51(arg)
+local character = localPlayer.Character
+if os.clock() - n36 > 0.5 or character ~= v14 then
+n36 = os.clock()
+v14 = character
+local filterDescendantsInstances = {}
+for _, player in ipairs(Players:GetPlayers()) do
+if player.Character then table.insert(filterDescendantsInstances, player.Character) end
+end
+raycastParams.FilterDescendantsInstances = filterDescendantsInstances
+end
+local hit = workspace:Raycast(arg + Vector3.new(0, 60, 0), Vector3.new(0, -400, 0), raycastParams)
+if hit and arg.Y < hit.Position.Y + n35 then
+return Vector3.new(arg.X, hit.Position.Y + n35, arg.Z)
+end
+return arg
+end
+local function fn52(arg, arg2)
+local tbl35 = tbl34.Tracks[arg]
+if not tbl35 then
+tbl35 = {Samples = {}, Smooth = nil, Heading = nil}
+tbl34.Tracks[arg] = tbl35
+end
+local now = os.clock()
+local samples = tbl35.Samples
+table.insert(samples, {Time = now, Position = arg2.Position})
+while #samples > 2 and now - samples[1].Time > n32 do table.remove(samples, 1) end
+local alv = arg2.AssemblyLinearVelocity
+local v15 = samples[1]
+local n37 = now - v15.Time
+local n38
+if n37 >= 0.03 then
+n38 = (arg2.Position - v15.Position) / n37
+if not(n38.Magnitude <= 1500 and alv.Magnitude <= n38.Magnitude * 1.4) then n38 = alv end
+else n38 = alv end
+local vector = Vector3.new(n38.X, 0, n38.Z)
+tbl35.Smooth = tbl35.Smooth and tbl35.Smooth:Lerp(vector, 0.25) or vector
+local smooth = tbl35.Smooth
+if smooth.Magnitude > 1 then
+local heading = tbl35.Heading and tbl35.Heading:Lerp(smooth.Unit, 0.25) or smooth.Unit
+tbl35.Heading = heading.Magnitude > 0.01 and heading.Unit or smooth.Unit
+end
+return n38, vector, smooth, tbl35
+end
+local function fn53()
+local n37 = 0
+for _, stat in ipairs(tbl34.Stats) do n37 += stat.Shots end
+local option = tbl34.Option
+local n38 = -math.huge
+for i, stat in ipairs(tbl34.Stats) do
+local n39 = stat.Shots + 1
+local n40 = (stat.Hits + 1) / (stat.Shots + 2) + math.sqrt(2 * math.log(n37 + 2) / n39) * 0.35
+if n40 > n38 then n38 = n40; option = i end
+end
+tbl34.Option = option
+return option
+end
+local function fn54()
+local now = os.clock()
+for i = #tbl34.Pending, 1, -1 do
+local v15 = tbl34.Pending[i]
+local v16 = tbl34.Stats[v15.Option]
+if v15.RagdollBefore + 0.01 < fn43(v15.Target) then
+v16.Hits = v16.Hits + 1
+v16.Shots = v16.Shots + 1
+table.remove(tbl34.Pending, i)
+elseif now - v15.At > v15.Wait then
+if v15.CooldownBefore + 0.01 < (v15.Tool and tonumber(v15.Tool:GetAttribute("CooldownEndTime")) or 0) then
+v16.Shots = v16.Shots + 1
+end
+table.remove(tbl34.Pending, i)
+end
+end
+end
+combat.Plan = function(arg, arg2, arg3, arg4)
+if not arg3 then local v15; v15, arg3 = combat.Parts(arg) end
+if not arg3 or not arg3.Parent then return nil end
+local n37 = math.clamp(localPlayer:GetNetworkPing(), 0, 1)
+local n38 = math.clamp(n37 + n22, 0.05, 0.35)
+local v15, v16, v17, v18 = fn52(arg or arg3, arg3)
+local v19 = fn53()
+local v20 = tbl32[v19]
+local position = arg3.Position
+local n39 = position + v15 * math.max(0, v20 + n37 - n38)
+local n40 = position + v15 * (v20 + n37)
+local magnitude = v17.Magnitude
+local heading = v18.Heading
+if not heading then
+local vector = Vector3.new(arg2.Position.X - position.X, 0, arg2.Position.Z - position.Z)
+heading = vector.Magnitude > 0.1 and vector.Unit or Vector3.new(0, 0, 1)
+end
+local character = localPlayer.Character
+local v21 = combat.Range(character and combat.PickBat(character) or nil)
+local n41 = position + v17 * (n37 + v20 + n24 + n25) + (magnitude > 1 and v17.Unit * n27 * n26 or Vector3.zero)
+local n42 = math.max(5, math.min(v21 * 0.7, 6 + magnitude * 0.07)) * n26
+local now = os.clock()
+local n43 = (math.sin(now * 2 * 3.1415926535897931 / n28) * 0.5 + 0.5) * n42
+local n44 = math.sin(now * 2 * 3.1415926535897931 / n29) * n30
+local vector = Vector3.new(-heading.Z, 0, heading.X)
+if vector:Dot(arg2.Position - n41) < 0 then vector = -vector end
+local n45 = n41 + heading * n43 + vector * (v16.Magnitude < n31 and 3 or 1.5) + Vector3.new(0, n44, 0)
+local position2 = arg2.Position
+if not arg4 then
+position2 = combat.KeepOffWalls(arg2.Position, fn51(Vector3.new(n45.X, n45.Y, position.Z)))
+end
+return {Goal = position2, Velocity = Vector3.new(v17.X, 0, v17.Z), Face = n40, Current = n40, Historical = n39, Option = v19, Distance = (position - arg2.Position).Magnitude}
+end
+combat.Steer = function(arg, arg2, arg3, arg4, arg5)
+local n37 = math.max(arg5, 0.0041666666666666666)
+local velocity = arg2.Velocity
+local n38 = velocity + (arg2.Goal - arg.Position) / math.max(0.12, n37)
+local n39 = math.min(arg3 + velocity.Magnitude, arg4)
+if n38.Magnitude > n39 then n38 = n38.Unit * n39 end
+local position = arg.Position
+local n40 = position + n38 * n37
+local v15 = combat.KeepOffWalls(position, n40)
+if (v15 - n40).Magnitude > 0.01 then n38 = (v15 - position) / n37 end
+local v16 = combat.KeepOffWalls(position, position)
+if (v16 - position).Magnitude > 0.01 then n38 = (v16 - position) / math.max(0.12, n37) end
+local alv = n38 + Vector3.new(0, workspace.Gravity * n37 * 0.5, 0)
+pcall(function()
+local vector = Vector3.new(arg2.Face.X - position.X, 0, arg2.Face.Z - position.Z)
+if vector.Magnitude > 0.05 then arg.CFrame = CFrame.lookAt(position, position + vector.Unit) end
+arg.AssemblyLinearVelocity = alv
+arg.AssemblyAngularVelocity = Vector3.zero
+end)
+end
+combat.TryHit = function(arg, arg2)
+fn54()
+if workspace:GetAttribute("PvPDisabled") == true then return "Player hits are off right now" end
+local character = localPlayer.Character
+local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+local v15 = combat.Humanoid(character)
+if not humanoidRootPart or not v15 or v15.Health <= 0 then return "Waiting for your character" end
+local v16 = combat.PickBat(character)
+if not v16 then return "No bat found" end
+if not fn45(character, v15, v16) then return "Equipping ".. tostring(v16:GetAttribute("GearName") or v16.Name) end
+if not combat.Hittable(arg) or combat.Ragdolled(arg) then return nil end
+arg2 = arg2 or combat.Plan(arg, humanoidRootPart)
+if not arg2 then return nil end
+local n37 = combat.Range(v16) - n23
+local n38 = humanoidRootPart.Position - humanoidRootPart.AssemblyLinearVelocity * n24
+if (arg2.Historical - n38).Magnitude > n37 and (arg2.Current - n38).Magnitude > n37 then return nil end
+local v17 = fn42()
+if not v17 then return nil end
+local n39 = math.clamp(localPlayer:GetNetworkPing(), 0, 1)
+local n40 = tonumber(v16:GetAttribute("CooldownEndTime")) or 0
+if fn41() < n40 - n39 * 0.5 then return nil end
+local lastFire = tbl34.LastFire
+if os.clock() - lastFire < math.max(0.12, n39 * 1.5) then return nil end
+tbl34.LastFire = os.clock()
+tbl34.Trace = tbl34.Trace + 1
+table.insert(tbl34.Pending, {Target = arg, Option = arg2.Option, At = os.clock(), Wait = math.max(0.5, n39 * 2 + 0.3), RagdollBefore = fn43(arg), CooldownBefore = n40, Tool = v16})
+local str4 = string.format("%d:%d:%d", localPlayer.UserId, tbl34.Trace, math.floor(fn41() * 1000))
+pcall(function() v17:FireServer(arg, str4) end)
+return "Hitting ".. arg.DisplayName
+end
+combat.ReadyBat = function()
+local character = localPlayer.Character
+local v15 = combat.Humanoid(character)
+if not character or not v15 or v15.Health <= 0 then return false end
+local v16 = combat.PickBat(character)
+return v16 ~= nil and fn45(character, v15, v16)
+end
+combat.Swing = function()
+if tbl4.Steal.Active or tbl4.Steal.Carrying then return false end
+local lastFire = tbl34.LastFire
+local flag4 = os.clock() - lastFire < 0.3
+if not flag4 then flag4 = os.clock() - (tbl34.LastSwing or 0) < 0.15 end
+if flag4 then return false end
+local character = localPlayer.Character
+local v15 = combat.Humanoid(character)
+if not character or not v15 or v15.Health <= 0 then return false end
+local v16 = combat.PickBat(character)
+if not v16 or not fn45(character, v15, v16) then return false end
+tbl34.LastSwing = os.clock()
+pcall(function() v16:Activate() end)
+return true
+end
+combat.HolderOf = function(arg)
+local v15 = workspace:FindFirstChild(arg)
+if not v15 then return nil end
+for _, descendant in ipairs(v15:GetDescendants()) do
+if descendant:IsA("JointInstance") or descendant:IsA("WeldConstraint") or descendant:IsA("RigidConstraint") then
+local ok, result, result2 = pcall(function() return descendant.Part0, descendant.Part1 end)
+if ok then
+for _, v16 in ipairs({result, result2}) do
+if typeof(v16) == "Instance" and not v16:IsDescendantOf(v15) then
+local model = v16:FindFirstAncestorOfClass("Model")
+local playerFromCharacter
+if model then playerFromCharacter = Players:GetPlayerFromCharacter(model) or Players:FindFirstChild(model.Name)
+else playerFromCharacter = model end
+playerFromCharacter = playerFromCharacter or nil
+if playerFromCharacter and playerFromCharacter ~= localPlayer and playerFromCharacter:IsA("Player") then
+return playerFromCharacter
+end
+end
+end
+end
+end
+end
+return nil
+end
+task.spawn(function()
+while not tbl4.CombatDisposed do
+local holders = {}
+if tbl4.CombatWantsHolders then
+local eggState = tbl.EggState
+if type(eggState) == "table" and type(eggState.ReadFieldEggs) == "function" then
+local ok, result = pcall(eggState.ReadFieldEggs)
+local records = ok and type(result) == "table" and result.Records or nil
+if type(records) == "table" then
+for _, record in pairs(records) do
+if type(record) == "table" and record.State == "Carried" and type(record.Uid) == "string" then
+local v15 = combat.HolderOf(record.Uid)
+if v15 then holders[v15] = true end
+end
+end
+end
+end
+end
+tbl34.Holders = holders
+task.wait(0.3)
+end
+end)
+combat.IsHolder = function(arg)
+return tbl34.Holders[arg] == true
+end
+local tbl35 = {}
+combat.OnNewLife = function(arg)
+table.insert(tbl35, arg)
+end
+local function fn55()
+table.clear(tbl34.Pending)
+tbl34.LastFire = 0
+tbl34.LastSwing = 0
+tbl34.EquipAt = 0
+table.clear(tbl34.Tracks)
+table.clear(tbl34.WallSide)
+tbl34.SpawnRagdoll = fn43(localPlayer)
+for _, v15 in ipairs(tbl35) do pcall(v15) end
+end
+local characterAdded = localPlayer.CharacterAdded
+local connect = characterAdded.Connect
+local tbl36 = {localPlayer.CharacterRemoving:Connect(fn55), connect(characterAdded, fn55)}
+fn4(function()
+tbl4.CombatDisposed = true
+for _, v15 in ipairs(tbl36) do pcall(function() v15:Disconnect() end) end
+end)
+end
+-- Combat Tab
+do
+local combat2 = tbl4.Combat
+local tbl32 = {"Nearest", "Egg Holders", "Specific Player"}
+local n20 = 0.7
+local str4 = "No other players"
+local tbl33 = {
+Handles = {},
+AuraHandle = nil,
+Row = nil,
+Picker = nil,
+TargetMode = tbl32[1],
+Picked = nil,
+LabelToName = {},
+Speed = 400,
+MaxSpeed = 750,
+Target = nil,
+Plan = nil,
+Moving = false,
+Status = "Idle",
+Shown = nil,
+NamesDirty = true,
+}
+local function fn41()
+for i, v14 in ipairs(tbl32) do
+if tbl4.Toggle(tbl33.Handles[i], false) then return v14 end
+end
+return nil
+end
+local function fn42()
+return tbl4.Toggle(tbl33.AuraHandle, false) == true
+end
+tbl4.CombatActive = function()
+return fn41() ~= nil or fn42()
+end
+local function fn43(arg)
+if not combat2.Hittable(arg) then return false end
+if tbl33.TargetMode == tbl32[2] then return combat2.IsHolder(arg) end
+if tbl33.TargetMode == tbl32[3] then return tbl33.Picked ~= nil and arg.Name == tbl33.Picked end
+return true
+end
+local function fn44(arg)
+local target = tbl33.Target
+local magnitude
+if target and fn43(target) then
+local v14, v15 = combat2.Parts(target)
+magnitude = (v15.Position - arg).Magnitude
+else
+magnitude = math.huge
+target = nil
+end
+local huge = math.huge
+local v14 = nil
+for _, player in ipairs(Players:GetPlayers()) do
+if player ~= target and fn43(player) and not combat2.Ragdolled(player) then
+local v15, v16 = combat2.Parts(player)
+local magnitude2 = (v16.Position - arg).Magnitude
+if magnitude2 < huge then
+huge = magnitude2
+v14 = player
+end
+end
+end
+if target then
+if v14 and not combat2.Ragdolled(target) and huge < magnitude * n20 then return v14 end
+return target
+end
+return v14
+end
+local function fn45(arg, arg2)
+local v14 = nil
+for _, player in ipairs(Players:GetPlayers()) do
+if player ~= localPlayer then
+local character = player.Character
+local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+if humanoidRootPart then
+local magnitude = (humanoidRootPart.Position - arg).Magnitude
+if magnitude < arg2 and combat2.Hittable(player) and not combat2.Ragdolled(player) then
+arg2 = magnitude
+v14 = player
+end
+end
+end
+end
+return v14, arg2
+end
+local function fn46()
+tbl33.Plan = nil
+if tbl33.Moving then
+tbl33.Moving = false
+tbl4.EndFlight()
+tbl4.GodMode(false)
+tbl4.Shield("combat", false)
+combat2.ResetWalls()
+end
+tbl4.ReleaseMovement("combat")
+end
+combat2.OnNewLife(function()
+tbl33.AuraVictim = nil
+tbl33.Target = nil
+tbl33.Plan = nil
+pcall(fn46)
+end)
+local function fn47()
+local movement = tbl4.Movement
+return tbl4.Steal.Active or tbl4.Steal.Carrying or tbl4.Steal.Wanted and tbl4.Toggle(v5, false) or movement.Owner ~= nil and movement.Owner ~= "combat" and movement.Owner ~= "treadmill"
+end
+local function fn48(arg)
+local character = localPlayer.Character
+local n21 = combat2.Range(character and combat2.PickBat(character) or nil) + 6
+local v14, v15 = fn45(arg.Position, n21 + 24)
+if not v14 or v15 > n21 then
+tbl33.AuraVictim = nil
+if v14 then combat2.ReadyBat() end
+tbl33.Status = "Aura ready, nobody in reach"
+return
+end
+tbl33.AuraVictim = v14
+tbl33.Status = combat2.TryHit(v14, combat2.Plan(v14, arg, nil, true)) or "Aura on ".. v14.DisplayName
+end
+local function fn49()
+local v14 = fn41()
+if v14 and v14 ~= tbl33.TargetMode then
+tbl33.TargetMode = v14
+tbl33.Target = nil
+end
+tbl4.CombatWantsHolders = v14 == tbl32[2]
+local v15 = fn42()
+local flag4 = not v14
+if flag4 then
+if tbl33.Target or tbl33.Moving then
+tbl33.Target = nil
+fn46()
+end
+end
+if flag4 and not v15 then
+tbl33.Status = "Idle"
+return
+end
+local character = localPlayer.Character
+local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+local v16 = combat2.Humanoid(character)
+if not humanoidRootPart or not v16 or v16.Health <= 0 then
+tbl33.Target = nil
+fn46()
+tbl33.Status = "Waiting for your character"
+return
+end
+if flag4 then
+fn48(humanoidRootPart)
+return
+end
+local v17 = fn44(humanoidRootPart.Position)
+tbl33.Target = v17
+if not v17 then
+fn46()
+if v15 then fn48(humanoidRootPart); return end
+tbl33.Status = v14 == tbl32[2] and "Waiting for someone to hold an egg" or v14 == tbl32[3] and "Picked player is not reachable" or "No player to hit"
+return
+end
+local v18 = combat2.Plan(v17, humanoidRootPart)
+local flag5 = v14 ~= tbl32[2]
+if not fn47() and (flag5 or not combat2.SelfRagdolled()) and tbl4.ClaimMovement("combat") and not tbl4.AntiGuard.Busy then
+if not tbl33.Moving then
+tbl33.Moving = true
+tbl4.Shield("combat", true)
+tbl4.GodMode(true)
+tbl4.BeginFlight()
+end
+tbl4.GodTick()
+tbl33.Plan = v18
+else
+if tbl33.Moving then fn46() end
+tbl33.Plan = nil
+end
+local v19 = combat2.TryHit(v17, v18, flag5)
+local n21 = v18 and math.floor(v18.Distance + 0.5) or 0
+if v19 then
+tbl33.Status = v19.. string.format("  %d studs", n21)
+elseif fn47() then
+tbl33.Status = string.format("Waiting for Auto Steal, near %s", v17.DisplayName)
+else
+tbl33.Status = string.format("Chasing %s  %d studs", v17.DisplayName, n21)
+end
+end
+local function fn50()
+local tbl34 = {}
+for _, player in ipairs(Players:GetPlayers()) do
+if player ~= localPlayer then table.insert(tbl34, player) end
+end
+table.sort(tbl34, function(arg, arg2)
+return string.lower(arg.DisplayName) < string.lower(arg2.DisplayName)
+end)
+local tbl35 = {}
+for _, v14 in ipairs(tbl34) do
+tbl35[v14.DisplayName] = (tbl35[v14.DisplayName] or 0) + 1
+end
+local tbl36 = {}
+local tbl37 = {}
+for _, v14 in ipairs(tbl34) do
+local displayName = v14.DisplayName
+if tbl35[displayName] > 1 then
+displayName = string.format("%s (@%s)", v14.DisplayName, v14.Name)
+end
+table.insert(tbl36, displayName)
+tbl37[displayName] = v14.Name
+end
+if #tbl36 == 0 then tbl36[1] = str4 end
+return tbl36, tbl37
+end
+local function fn51(arg)
+for k, v14 in pairs(tbl33.LabelToName) do
+if v14 == arg then return k end
+end
+return nil
+end
+local connection2 = RunService.PreSimulation:Connect(function(deltaTime)
+local plan = tbl33.Plan
+if not plan or not tbl33.Moving then return end
+local v14 = tbl4.Root()
+if v14 then combat2.Steer(v14, plan, tbl33.Speed, math.max(tbl33.Speed, tbl33.MaxSpeed), deltaTime) end
+end)
+local n21 = 0.05
+local n22 = 0
+local connection3 = RunService.Heartbeat:Connect(function()
+local flag4 = fn41() ~= nil
+local v14 = fn42()
+if not v14 then tbl33.AuraVictim = nil end
+local now = os.clock()
+if flag4 or not v14 or now >= n22 then
+if v14 and not flag4 then n22 = now + n21 end
+if not pcall(fn49) then tbl33.Status = "Retrying" end
+end
+if flag4 or v14 and tbl33.AuraVictim ~= nil then pcall(combat2.Swing) end
+local row = tbl33.Row
+if row and tbl33.Shown ~= tbl33.Status and type(row.Set) == "function" then
+tbl33.Shown = tbl33.Status
+pcall(row.Set, row, tbl33.Status)
+end
+local picker = tbl33.Picker
+if tbl33.NamesDirty and picker and type(picker.SetOptions) == "function" then
+tbl33.NamesDirty = false
+local v15, v16 = fn50()
+tbl33.LabelToName = v16
+pcall(picker.SetOptions, picker, v15, tbl33.Picked and fn51(tbl33.Picked) or v15[1], false)
+end
+end)
+local connection4 = Players.PlayerAdded:Connect(function() tbl33.NamesDirty = true end)
+local connection5 = Players.PlayerRemoving:Connect(function(player)
+tbl33.NamesDirty = true
+if tbl33.Target == player then tbl33.Target = nil end
+end)
+fn4(function()
+for _, v14 in ipairs({connection2, connection3, connection4, connection5}) do
+pcall(function() v14:Disconnect() end)
+end
+tbl33.Target = nil
+fn46()
+end)
+local function fn52(arg, arg2)
+if tbl4.Toggle(arg, false) and tbl4.Toggle(tbl4.InvisibilityHandle, false) then
+tbl4.UiDefer(function()
+pcall(arg.Set, arg, false, false)
+tbl4.Notify(arg2, "Turn off Invisibility first, both cannot be on at the same time")
+end)
+return true
+end
+return false
+end
+tbl33.Row = v13:CreateText({Name = "Hit Status", Text = "Idle"})
+local v14 = v2:CreateExclusiveGroup({Name = "Zyro Combat Targets", MaxActive = 1})
+for i, v15 in ipairs({"Auto Hit Nearest Player", "Auto Hit Egg Holders", "Auto Hit Specific Player"}) do
+local v16 = nil
+v16 = v13:CreateToggle({
+Name = v15,
+Default = false,
+Callback = function() fn52(v16, v15) end,
+})
+pcall(v16.JoinExclusiveGroup, v16, v14)
+tbl33.Handles[i] = v16
+end
+local v15, v16 = fn50()
+tbl33.LabelToName = v16
+tbl33.Picker = v13:CreateDropdown({
+Name = "Hit Player",
+Options = v15,
+Default = v15[1],
+SubOf = tbl33.Handles[3],
+Callback = function(arg)
+tbl33.Picked = tbl33.LabelToName[tostring(arg)]
+tbl33.Target = nil
+end,
+})
+tbl33.AuraHandle = v13:CreateToggle({
+Name = "Hit Aura",
+Default = false,
+Callback = function() fn52(tbl33.AuraHandle, "Hit Aura") end,
+})
+pcall(tbl33.AuraHandle.JoinExclusiveGroup, tbl33.AuraHandle, v14)
+local v17 = v13:CreateLabel({Name = "Chase Settings", Text = "Chase Settings"})
+v13:CreateSlider({
+Name = "Hit Tween Speed", SubOf = v17, Min = 100, Max = 1000, Default = 400, Increment = 10, Unit = "studs/s",
+Callback = function(arg) tbl33.Speed = math.clamp(tonumber(arg) or 400, 100, 1000) end,
+})
+v13:CreateSlider({
+Name = "Hit Max Speed", SubOf = v17, Min = 100, Max = 1000, Default = 750, Increment = 10, Unit = "studs/s",
+Callback = function(arg) tbl33.MaxSpeed = math.clamp(tonumber(arg) or 750, 100, 1000) end,
+})
+v13:CreateSlider({
+Name = "Hit Lead", SubOf = v17, Note = "Stand further ahead of the target (+) or closer to them (-)",
+Min = -400, Max = 100, Default = -275, Increment = 1,
+Callback = function(arg) combat2.SetLead(arg) end,
+})
+v13:CreateSlider({
+Name = "Hit Sweep", SubOf = v17, Note = "How far you move back and forth in front of the target",
+Min = 0, Max = 250, Default = 60, Increment = 1, Unit = "%",
+Callback = function(arg) combat2.SetSweep(arg) end,
+})
+end
+-- ESP (setup básico)
+espSection = tbl4.EspSection
+local function fn41(arg, arg2)
+local ok, result = pcall(Font.new, arg, arg2, Enum.FontStyle.Normal)
+return ok and result or nil
+end
+local tbl6_esp = {
+MainFont = fn41("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.ExtraBold),
+StatusFont = fn41("rbxasset://fonts/families/FredokaOne.json", Enum.FontWeight.Regular),
+Sequence = function(arg)
+local v14 = table.create(#arg)
+for i, v15 in ipairs(arg) do v14[i] = ColorSequenceKeypoint.new(v15[1], v15[2]) end
+return ColorSequence.new(v14)
+end,
+}
+local color = Color3.fromRGB
+local sequence = tbl6_esp.Sequence
+local palettes = {}
+do
+local gold = {}
+local tbl32 = {}
+tbl32[1] = {0, color(255, 231, 158)}
+tbl32[2] = {0.4, color(255, 196, 66)}
+tbl32[3] = {1, color(214, 142, 12)}
+gold.Text = sequence(tbl32)
+local tbl36 = {}
+tbl36[1] = {0, color(122, 76, 0)}
+tbl36[2] = {0.55, color(62, 38, 0)}
+tbl36[3] = {1, color(20, 12, 0)}
+gold.Stroke = sequence(tbl36)
+gold.Outline = color(255, 232, 152)
+palettes.Gold = gold
+end
+do
+local orange = {}
+local tbl32 = {}
+tbl32[1] = {0, color(255, 198, 132)}
+tbl32[2] = {0.4, color(255, 146, 40)}
+tbl32[3] = {1, color(206, 92, 0)}
+orange.Text = sequence(tbl32)
+local tbl36 = {}
+tbl36[1] = {0, color(112, 54, 0)}
+tbl36[2] = {0.55, color(56, 27, 0)}
+tbl36[3] = {1, color(18, 8, 0)}
+orange.Stroke = sequence(tbl36)
+orange.Outline = color(255, 194, 112)
+palettes.Orange = orange
+end
+do
+local red = {}
+local tbl32 = {}
+tbl32[1] = {0, color(255, 105, 105)}
+tbl32[2] = {0.4, color(255, 28, 40)}
+tbl32[3] = {1, color(184, 0, 18)}
+red.Text = sequence(tbl32)
+local tbl36 = {}
+tbl36[1] = {0, color(124, 0, 15)}
+tbl36[2] = {0.55, color(61, 0, 9)}
+tbl36[3] = {1, color(18, 0, 3)}
+red.Stroke = sequence(tbl36)
+red.Outline = color(255, 128, 138)
+palettes.Red = red
+end
+do
+local accent = {}
+local tbl32 = {}
+tbl32[1] = {0, color(170, 255, 160)}
+tbl32[2] = {0.45, color(58, 255, 55)}
+tbl32[3] = {1, color(20, 109, 0)}
+accent.Text = sequence(tbl32)
+local tbl36 = {}
+tbl36[1] = {0, color(10, 52, 6)}
+tbl36[2] = {1, color(3, 16, 0)}
+accent.Stroke = sequence(tbl36)
+accent.Outline = color(58, 255, 55)
+palettes.Accent = accent
+end
+do
+local sheen = {}
+local tbl32 = {}
+tbl32[1] = {0, color(255, 255, 255)}
+tbl32[2] = {0.5, color(222, 222, 222)}
+tbl32[3] = {1, color(255, 255, 255)}
+sheen.Text = sequence(tbl32)
+local tbl36 = {}
+tbl36[1] = {0, color(8, 8, 8)}
+tbl36[2] = {1, color(8, 8, 8)}
+sheen.Stroke = sequence(tbl36)
+sheen.Outline = color(255, 255, 255)
+palettes.Sheen = sheen
+end
+tbl6_esp.Palettes = palettes
+tbl6_esp.PaletteFromColor = function(arg)
+local color2 = Color3.new(1, 1, 1)
+local color3 = Color3.new(0, 0, 0)
+local tbl32 = {}
+tbl32.Text = sequence({{0, arg:Lerp(color2, 0.5)}, {0.4, arg:Lerp(color2, 0.1)}, {1, arg:Lerp(color3, 0.25)}})
+tbl32.Stroke = sequence({{0, arg:Lerp(color3, 0.55)}, {0.55, arg:Lerp(color3, 0.75)}, {1, arg:Lerp(color3, 0.92)}})
+tbl32.Outline = arg:Lerp(color2, 0.25)
+return tbl32
+end
+-- ESP Finalize
+if type(espSection.CreateToggle) == "function" then
+-- (Placeholder: ESP eggs/players configurado no Bloco 1)
+end
+-- Auto Buy Scramble Shop (que ficou pendente no Extra B)
+if v7 and type(v7.CreateToggle) == "function" and tbl26 and tbl26.Handle then
+-- (Já criado no Extra B)
+end
+-- Finalize
+v:Finalize({Window = v2, MainTab = defaultTab, ShowMainTab = true})
+-- Auto Load Script (loader final)
+task.spawn(function()
+task.wait(20)
+local str = "\0zyro_guard"
+local genv = typeof(getgenv) == "function" and getgenv() or _G
+local function fn19()
+local v15 = genv[str]
+if type(v15) == "table" and type(v15.Ask) == "function" then return v15 end
+return nil
+end
+local v15 = fn19()
+if not v15 then
+task.spawn(function()
+local v16 = nil
+for i = 1, 4 do
+task.wait()
+local ok, result = pcall(function()
+local v17 = v16
+local response
+if v16 then response = v17
+else response = game:HttpGet("https://raw.githubusercontent.com/ZyroHub/zyrohub/main/ZyroGD") end
+v16 = response
+local chunk, v18 = loadstring(v16)
+assert(chunk, v18)
+return chunk()
+end)
+if ok then
+fn("guard: loader ran on try ".. i)
+return
+end
+if type(result) == "string" and string.find(result, "HttpGet", 1, true) then v16 = nil end
+fn("guard: loader try ".. i.. " failed: ".. tostring(result))
+task.wait(1 + i)
+end
+end)
+local n14 = os.clock() + 30
+while true do
+task.wait(0.25)
+v15 = fn19()
+if not(v15 or os.clock() > n14) then continue end
+break
+end
+end
+local flag4 = false
+if v15 then
+local result
+flag4, result = pcall(v15.Ask, "v202")
+flag4 = flag4 and type(result) == "string" and #result > 0
+end
+genv[str] = nil
+if flag4 then return end
+pcall(function()
+local zyroHubSaeCleanup = genv.ZyroHubSaeCleanup
+if type(zyroHubSaeCleanup) == "function" then zyroHubSaeCleanup() end
+end)
+genv.ZyroHubSaeCleanup = nil
+end)
+-- Restore Steal Panel
+task.defer(function()
+for i = 1, 3 do RunService.Heartbeat:Wait() end
+if type(tbl4.RestoreStealPanel) == "function" then
+pcall(tbl4.RestoreStealPanel)
+end
+end)
+-- ============================================================
+-- FIM DO ZYRO HUB
+-- Discord: discord.gg/YjEa2NSbTX
+-- ============================================================
