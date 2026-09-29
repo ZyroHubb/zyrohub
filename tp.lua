@@ -590,6 +590,16 @@ local breakJointsOnDeath = nil
 local v6 = nil
 local connection = nil
 local walkSpeed = nil
+print("[Zyro] A/3 finalizado")
+
+local guardAreas = workspace:WaitForChild("__OBJECTS"):WaitForChild("Areas"):WaitForChild("GuardAreas")
+print("[Zyro] GuardAreas OK")
+
+guardAreas:WaitForChild("Forest")
+print("[Zyro] Forest OK")
+
+local ground = workspace:WaitForChild("__OBJECTS"):WaitForChild("Areas"):WaitForChild("Ground")
+print("[Zyro] Ground OK")
 
 print("[Zyro] BLOCO A/3 carregado. Cole o BLOCO B/3 depois.")
 tbl2.restoreWalkSpeed = function()
@@ -4745,3 +4755,4 @@ task.spawn(function()
 end)
 
 print("[Zyro] BLOCO C/3 carregado! Tudo pronto.")
+print("[Zyro] C/3 finalizado")
