@@ -494,25 +494,68 @@ local function walkToDelivery()
     return true, "ok"
 end
 
-local function runInstantStealChilli()
-    setStatus("Instant Steal: procurando melhor ovo...", Color3.fromRGB(255, 200, 100))
+local function runInstantStealLennon()
+    setStatus("Instant Steal Lennon: procurando ovo...", Color3.fromRGB(255, 200, 100))
     local egg, err = getBestEgg()
     if not egg or not egg.BottomCFrame then return false, err or "ovo invalido" end
-    if not applyDS() then return false, "desync indisponivel" end
+    local char = lp.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not root or not hum or hum.Health <= 0 then return false, "personagem indisponivel" end
 
-    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    if not root then restoreDS(); return false, "sem HRP" end
-    local target = egg.BottomCFrame.Position
+    -- Lennon Instant: salvar a safe zone, viajar com o corpo real e voltar por CFrame.
+    local safeCFrame = root.CFrame
+    local target = egg.BottomCFrame.Position + Vector3.new(0, 3, 0)
     local flat = Vector3.new(target.X - root.Position.X, 0, target.Z - root.Position.Z)
     if flat.Magnitude > 0.01 then target -= flat.Unit * 3 end
-    setStatus("Instant Steal: aproximando...", Color3.fromRGB(100, 200, 255))
-    local ok, reason = tweenMove(target, 500, true)
-    if not ok then restoreDS(); return false, reason end
-    task.wait(0.12)
-    setStatus("Instant Steal: spam de carry...", Color3.fromRGB(255, 200, 100))
-    local carried, carryReason = carryEgg(egg.Uid, 3, egg)
-    restoreDS()
-    if not carried then return false, carryReason end
+    setStatus("Instant Steal Lennon: ida rapida...", Color3.fromRGB(100, 200, 255))
+    local ok, reason = tweenMove(target, 5000, true)
+    if not ok then return false, reason end
+    task.wait(0.05)
+
+    local event = networking and networking:FindFirstChild("RE/EggWorld/FieldEggCarry")
+    local invoke = networking and networking:FindFirstChild("RF/EggWorld/AskFieldEggCarry")
+    local confirmed = false
+    local connection
+    if event and event:IsA("RemoteEvent") then
+        connection = event.OnClientEvent:Connect(function(payload)
+            if type(payload) == "table" and tostring(payload.Uid) == tostring(egg.Uid)
+                and (payload.CarrierUserId == nil or payload.CarrierUserId == lp.UserId) then
+                confirmed = true
+            end
+        end)
+    end
+
+    -- O Lennon mantém o spam por até 60 tentativas, em vez de uma chamada única.
+    setStatus("Instant Steal Lennon: capturando...", Color3.fromRGB(255, 200, 100))
+    for i = 1, 60 do
+        if confirmed then break end
+        if EggState and type(EggState.CarryFieldEgg) == "function" then
+            local callOk, callResult = pcall(EggState.CarryFieldEgg, egg.Uid, nil)
+            if callOk and callResult == true then confirmed = true end
+        end
+        if invoke and invoke:IsA("RemoteFunction") then
+            local callOk, callResult = pcall(invoke.InvokeServer, invoke, {Uid = egg.Uid})
+            if callOk and callResult == true then confirmed = true end
+        end
+        RunService.Heartbeat:Wait()
+        task.wait(0.04)
+    end
+    if connection then connection:Disconnect() end
+    if not confirmed then
+        return false, "carry nao confirmado"
+    end
+
+    -- Retorno Lennon: teleporte único para a safe zone original, não uma rota de micro-TPs.
+    setStatus("Instant Steal Lennon: retornando...", Color3.fromRGB(100, 255, 140))
+    root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return false, "HRP sumiu" end
+    pcall(function()
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+        root.CFrame = safeCFrame
+    end)
+    task.wait(0.5)
     return true, "ok"
 end
 
@@ -608,7 +651,7 @@ btnInstant.MouseButton1Click:Connect(function()
     end
     autoRunning = true
     task.spawn(function()
-        local ok, reason = runInstantStealChilli()
+        local ok, reason = runInstantStealLennon()
         autoRunning = false
         restoreDS()
         if ok then
