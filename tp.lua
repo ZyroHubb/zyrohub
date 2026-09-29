@@ -406,6 +406,18 @@ local function tweenMove(pos, speed, lookAtTarget)
     return true, "ok"
 end
 
+local function tweenRoute(route)
+    if type(route) ~= "table" then return false, "rota invalida" end
+    for _, point in ipairs(route) do
+        local pos = type(point) == "table" and (point.pos or point.Position) or point
+        local speed = type(point) == "table" and point.speed or 500
+        local ok, reason = tweenMove(pos, speed, true)
+        if not ok then return false, reason end
+        RunService.Heartbeat:Wait()
+    end
+    return true, "ok"
+end
+
 local function carryEgg(uid, timeout, record)
     timeout = tonumber(timeout) or 2.5
     if not uid or not networking then return false, "uid invalido" end
@@ -482,6 +494,28 @@ local function walkToDelivery()
     return true, "ok"
 end
 
+local function runInstantStealChilli()
+    setStatus("Instant Steal: procurando melhor ovo...", Color3.fromRGB(255, 200, 100))
+    local egg, err = getBestEgg()
+    if not egg or not egg.BottomCFrame then return false, err or "ovo invalido" end
+    if not applyDS() then return false, "desync indisponivel" end
+
+    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    if not root then restoreDS(); return false, "sem HRP" end
+    local target = egg.BottomCFrame.Position
+    local flat = Vector3.new(target.X - root.Position.X, 0, target.Z - root.Position.Z)
+    if flat.Magnitude > 0.01 then target -= flat.Unit * 3 end
+    setStatus("Instant Steal: aproximando...", Color3.fromRGB(100, 200, 255))
+    local ok, reason = tweenMove(target, 500, true)
+    if not ok then restoreDS(); return false, reason end
+    task.wait(0.12)
+    setStatus("Instant Steal: spam de carry...", Color3.fromRGB(255, 200, 100))
+    local carried, carryReason = carryEgg(egg.Uid, 3, egg)
+    restoreDS()
+    if not carried then return false, carryReason end
+    return true, "ok"
+end
+
 local function runStealCycle(single)
     -- Etapa 1 do Lennon: localizar o ovo do primeiro estágio/Forest.
     setStatus("Preparando ninho Forest...", Color3.fromRGB(255, 200, 100))
@@ -495,13 +529,12 @@ local function runStealCycle(single)
     if not bestEgg then return false, "sem ovo prioritario separado" end
 
     setStatus("Clone guiado até o Forest...", Color3.fromRGB(100, 200, 255))
-    local ok, reason = guidedMove(forestEgg.BottomCFrame.Position, 150, 3, true, {
-        useDesync=true, tolerance=1.5, timeout=45,
-    })
+    if not applyDS() then return false, "desync indisponivel" end
+    local ok, reason = tweenMove(forestEgg.BottomCFrame.Position - Vector3.new(0, 0, 3), 150, true)
     if not ok then return false, "Forest: " .. tostring(reason) end
 
-    -- O Lennon atravessa os waypoints com o desync ativo e sem restaurar o Humanoid.
-    local routeOk, routeReason = guidedRoute(WP, {gap=0.08, lookAtTarget=true, tolerance=1.5})
+    -- Auto Steal Lennon: um Tween por waypoint, sem micro-passos por Heartbeat.
+    local routeOk, routeReason = tweenRoute(WP)
     if not routeOk then return false, "waypoints: " .. tostring(routeReason) end
     task.wait(0.25)
 
@@ -575,7 +608,7 @@ btnInstant.MouseButton1Click:Connect(function()
     end
     autoRunning = true
     task.spawn(function()
-        local ok, reason = runStealCycle(true)
+        local ok, reason = runInstantStealChilli()
         autoRunning = false
         restoreDS()
         if ok then
