@@ -1,5 +1,5 @@
--- ZYRO AUTO STEAL v9 - voo lento e suave (anti-anti-cheat)
-print("[Zyro] v9 iniciando...")
+-- ZYRO AUTO STEAL v10 - só Auto Steal, voo baixo
+print("[Zyro] v10 iniciando...")
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -23,7 +23,7 @@ pcall(function() sg.Parent = parent end)
 if not sg.Parent then warn("[Zyro] sem ScreenGui"); return end
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.fromOffset(260, 140)
+frame.Size = UDim2.fromOffset(260, 100)
 frame.Position = UDim2.new(0, 20, 0, 100)
 frame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
 frame.BorderSizePixel = 0
@@ -44,7 +44,7 @@ title.TextSize = 16
 title.Font = Enum.Font.GothamBold
 title.Parent = frame
 
--- Toggles iOS
+-- Toggle iOS
 local function criarToggle(texto, y, corAtivo)
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, -70, 0, 30)
@@ -107,7 +107,6 @@ end
 _G._zyroCallbacks = _G._zyroCallbacks or {}
 
 local toggleAuto = criarToggle("Auto Steal", 38, Color3.fromRGB(50, 200, 90))
-local toggleTP = criarToggle("TP pro melhor ovo", 76, Color3.fromRGB(200, 80, 80))
 
 local status = Instance.new("TextLabel")
 status.Size = UDim2.new(1, 0, 0, 20)
@@ -133,7 +132,7 @@ pcall(function() networking = ReplicatedStorage:WaitForChild("Packages", 5):Wait
 pcall(function() Assets = require(ReplicatedStorage:WaitForChild("Data", 5):WaitForChild("Assets", 5)) end)
 pcall(function() Mutations = require(ReplicatedStorage:WaitForChild("Shared", 5):WaitForChild("Modules", 5):WaitForChild("Mutations", 5)) end)
 
--- Waypoints do Lennon
+-- Waypoints
 local WP = {
     [4] = Vector3.new(767.54, 70.51, -327.81),
     [5] = Vector3.new(596.65, 70.52, -316.80),
@@ -218,7 +217,7 @@ local function applyDS()
 end
 
 -- ============================================================
--- TP SEGMENTADO LENTO (250 studs / velocidade 500)
+-- TP SEGMENTADO - VOO BAIXO (10 studs em vez de 40)
 -- ============================================================
 local function tpSegmentado(destino, maxSegmento)
     maxSegmento = maxSegmento or 250
@@ -230,10 +229,10 @@ local function tpSegmentado(destino, maxSegmento)
     applyDS()
     RunService.Heartbeat:Wait()
 
-    -- Sobe 40 studs
+    -- Sobe só 10 studs (era 40)
     local startPos = hrp.Position
-    local highY = startPos.Y + 40
-    local upTween = TweenService:Create(hrp, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = CFrame.new(Vector3.new(startPos.X, highY, startPos.Z))})
+    local highY = startPos.Y + 10
+    local upTween = TweenService:Create(hrp, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = CFrame.new(Vector3.new(startPos.X, highY, startPos.Z))})
     upTween:Play()
     upTween.Completed:Wait()
     RunService.Heartbeat:Wait()
@@ -252,9 +251,9 @@ local function tpSegmentado(destino, maxSegmento)
         local dist = vector.Magnitude
 
         if dist < 5 then
-            -- Desce
+            -- Desce pro chão
             local groundPos = Vector3.new(destino.X, destino.Y, destino.Z)
-            local downTween = TweenService:Create(hrp, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {CFrame = CFrame.new(groundPos)})
+            local downTween = TweenService:Create(hrp, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {CFrame = CFrame.new(groundPos)})
             downTween:Play()
             downTween.Completed:Wait()
             pcall(function()
@@ -267,13 +266,13 @@ local function tpSegmentado(destino, maxSegmento)
 
         local step = math.min(dist, maxSegmento)
         local dir = vector.Unit
+        -- Voo BAIXO: só 10 studs acima do destino
         local nextPos = Vector3.new(
             myPos.X + dir.X * step,
-            destino.Y + 40,
+            destino.Y + 10,
             myPos.Z + dir.Z * step
         )
 
-        -- Velocidade 500 (devagar)
         local duration = math.max(step / 500, 0.3)
         local targetCF = CFrame.new(nextPos)
         local tween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCF})
@@ -390,14 +389,14 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
                     continue
                 end
 
-                -- 2) TP SEGMENTADO LENTO (250 studs)
+                -- 2) Voa pro ovo (voo baixo)
                 setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
                 local posOvo = egg.BottomCFrame.Position
                 tpSegmentado(posOvo, 250)
                 if not autoRunning then break end
                 task.wait(0.5)
 
-                -- 3) Spam carry
+                -- 3) Pega o ovo
                 setStatus("Pegando ovo...", Color3.fromRGB(255, 200, 100))
                 local carried = false
                 for i = 1, 25 do
@@ -416,7 +415,7 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
                 setStatus("Ovo na mao!", Color3.fromRGB(100, 255, 140))
                 task.wait(0.5)
 
-                -- 4) Volta voando LENTO
+                -- 4) Volta voando baixo
                 setStatus("Voando p/ WP4...", Color3.fromRGB(100, 200, 255))
                 tpSegmentado(WP[4], 250)
                 if not autoRunning then break end
@@ -453,25 +452,4 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
     end
 end
 
--- ============================================================
--- TP PRO MELHOR OVO
--- ============================================================
-_G._zyroCallbacks["TP pro melhor ovo"] = function(ativo)
-    if ativo then
-        setStatus("Procurando ovo...", Color3.fromRGB(255, 200, 100))
-        local egg = getBestEgg()
-        if not egg then
-            setStatus("Sem ovo", Color3.fromRGB(255, 100, 100))
-            toggleTP.Set(false)
-            return
-        end
-        setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
-        tpSegmentado(egg.BottomCFrame.Position, 250)
-        task.wait(0.3)
-        restoreDS()
-        setStatus("OK: " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 255, 140))
-        toggleTP.Set(false)
-    end
-end
-
-print("[Zyro] v9 carregado! Voo lento (250 studs / 500 studs/s)")
+print("[Zyro] v10 carregado! Voando baixo (10 studs)")
