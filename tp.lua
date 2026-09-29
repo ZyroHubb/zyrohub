@@ -304,13 +304,13 @@ local function eggValue(rec)
     return rate * scaleMult(s) * m
 end
 
-local function getBestEgg()
+local function getBestEgg(excludeUid)
     if EggState then
         local ok, r = pcall(function() return EggState.SyncFieldEggs() end)
         if ok and type(r) == "table" and type(r.Records) == "table" then
             local best, bv = nil, -1
             for _, rec in pairs(r.Records) do
-                if type(rec) == "table" and rec.Uid and rec.BottomCFrame
+                if type(rec) == "table" and rec.Uid and tostring(rec.Uid) ~= tostring(excludeUid) and rec.BottomCFrame
                     and (rec.State == "Slot" or rec.State == "Dropped") then
                     local v = eggValue(rec)
                     if v > bv then bv = v; best = rec end
@@ -326,7 +326,7 @@ local function getBestEgg()
             if ok and type(r) == "table" and type(r.Records) == "table" then
                 local best, bv = nil, -1
                 for _, rec in pairs(r.Records) do
-                    if type(rec) == "table" and rec.Uid and rec.BottomCFrame
+                    if type(rec) == "table" and rec.Uid and tostring(rec.Uid) ~= tostring(excludeUid) and rec.BottomCFrame
                         and (rec.State == "Slot" or rec.State == "Dropped") then
                         local v = eggValue(rec)
                         if v > bv then bv = v; best = rec end
@@ -337,6 +337,63 @@ local function getBestEgg()
         end
     end
     return nil, "sem ovos"
+end
+
+
+local function getForestEgg(excludeUid)
+    local records
+    if EggState and type(EggState.SyncFieldEggs) == "function" then
+        local ok, result = pcall(EggState.SyncFieldEggs)
+        if ok and type(result) == "table" then records = result.Records end
+    end
+    if type(records) ~= "table" and networking then
+        local rf = networking:FindFirstChild("RF/EggWorld/AskFieldEggSnapshot")
+        if rf then
+            local ok, result = pcall(rf.InvokeServer, rf)
+            if ok and type(result) == "table" then records = result.Records end
+        end
+    end
+    if type(records) ~= "table" then return nil, "snapshot indisponivel" end
+    local best, bestScore = nil, math.huge
+    local forest = WP[7].pos
+    for _, rec in pairs(records) do
+        if type(rec) == "table" and rec.Uid and tostring(rec.Uid) ~= tostring(excludeUid)
+            and rec.BottomCFrame and (rec.State == "Slot" or rec.State == "Dropped") then
+            local area = string.lower(tostring(rec.AreaId or rec.AreaName or rec.Area or ""))
+            local pos = rec.BottomCFrame.Position
+            local score = (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(forest.X, 0, forest.Z)).Magnitude
+            if area:find("forest", 1, true) then score -= 100000 end
+            if rec.NestId ~= nil then score -= 1000 end
+            if score < bestScore then best, bestScore = rec, score end
+        end
+    end
+    return best, best and "ok" or "sem ovo no Forest"
+end
+
+-- Movimento de retorno do Lennon: um único Tween por destino, não micro-teleportes.
+local function tweenMove(pos, speed, lookAtTarget)
+    if typeof(pos) ~= "Vector3" then return false, "pos invalida" end
+    local char = lp.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return false, "sem HRP" end
+    speed = math.max(tonumber(speed) or 500, 25)
+    local delta = pos - root.Position
+    local rotation = root.CFrame.Rotation
+    local flat = Vector3.new(delta.X, 0, delta.Z)
+    if lookAtTarget and flat.Magnitude > 0.01 then
+        rotation = CFrame.lookAt(Vector3.zero, flat.Unit)
+    end
+    local target = CFrame.new(pos) * rotation
+    local tween = TweenService:Create(root, TweenInfo.new(math.max(delta.Magnitude / speed, 0.05), Enum.EasingStyle.Linear), {CFrame=target})
+    tween:Play()
+    local state = tween.Completed:Wait()
+    if state ~= Enum.PlaybackState.Completed then return false, "retorno cancelado" end
+    pcall(function()
+        root.CFrame = target
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+    end)
+    return true, "ok"
 end
 
 local function carryEgg(uid, timeout)
@@ -412,34 +469,59 @@ local function walkToDelivery()
 end
 
 local function runStealCycle(single)
-    setStatus("Procurando ovo...", Color3.fromRGB(255, 200, 100))
-    local egg, err = getBestEgg()
-    if not egg then return false, err end
-    if not egg.BottomCFrame or not egg.BottomCFrame.Position then return false, "ovo sem posição" end
-
-    setStatus("Teleguiado p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
-    -- O desync permanece ativo durante a aproximação e a coleta; não restaurar no ovo evita a morte.
-    local ok, reason = guidedMove(egg.BottomCFrame.Position, 150, 3, true, {
-        useDesync = true, tolerance = 1.5, timeout = 45,
-    })
-    if not ok then return false, "movimento: " .. tostring(reason) end
-    task.wait(0.12)
-
-    setStatus("Instant Steal: confirmando...", Color3.fromRGB(255, 200, 100))
-    local carried, carryReason = carryEgg(egg.Uid, 3)
-    if not carried then
-        restoreDS()
-        return false, "carry: " .. tostring(carryReason)
+    -- Etapa 1 do Lennon: localizar o ovo do primeiro estágio/Forest.
+    setStatus("Preparando ninho Forest...", Color3.fromRGB(255, 200, 100))
+    local forestEgg, forestErr = getForestEgg()
+    if not forestEgg then return false, forestErr end
+    local bestEgg, bestErr = getBestEgg()
+    if not bestEgg then return false, bestErr end
+    if tostring(bestEgg.Uid) == tostring(forestEgg.Uid) then
+        bestEgg = getBestEgg(forestEgg.Uid)
     end
-    setStatus("Ovo carregado; retornando...", Color3.fromRGB(100, 255, 140))
+    if not bestEgg then return false, "sem ovo prioritario separado" end
 
-    local routeOk, routeReason = guidedRoute({WP[5], WP[6], WP[7]}, {
-        gap = 0.12, lookAtTarget = true, tolerance = 1.5,
+    setStatus("Clone guiado até o Forest...", Color3.fromRGB(100, 200, 255))
+    local ok, reason = guidedMove(forestEgg.BottomCFrame.Position, 150, 3, true, {
+        useDesync=true, tolerance=1.5, timeout=45,
     })
-    if not routeOk then
+    if not ok then return false, "Forest: " .. tostring(reason) end
+
+    -- O Lennon atravessa os waypoints com o desync ativo e sem restaurar o Humanoid.
+    local routeOk, routeReason = guidedRoute(WP, {gap=0.08, lookAtTarget=true, tolerance=1.5})
+    if not routeOk then return false, "waypoints: " .. tostring(routeReason) end
+    task.wait(0.25)
+
+    setStatus("Instant Steal do ninho...", Color3.fromRGB(255, 200, 100))
+    local forestCarried, carryReason = carryEgg(forestEgg.Uid, 3)
+    if not forestCarried then
         restoreDS()
-        return false, "rota: " .. tostring(routeReason)
+        return false, "Forest carry: " .. tostring(carryReason)
     end
+
+    -- Etapa 2: o clone voa até o melhor ovo enquanto a hitbox permanece desyncada.
+    setStatus("Clone voando até o melhor ovo...", Color3.fromRGB(100, 200, 255))
+    local bestPos = bestEgg.BottomCFrame.Position + Vector3.new(0, 3, 0)
+    local bestOk, bestReason = tweenMove(bestPos, 5000, true)
+    if not bestOk then restoreDS(); return false, "melhor ovo: " .. tostring(bestReason) end
+    task.wait(0.15)
+
+    setStatus("Instant Steal do melhor ovo...", Color3.fromRGB(255, 200, 100))
+    local bestCarried, bestCarryReason = carryEgg(bestEgg.Uid, 3)
+    if not bestCarried then
+        restoreDS()
+        return false, "melhor carry: " .. tostring(bestCarryReason)
+    end
+
+    -- A captura confirma o retorno; só WP6/WP7 são usados, como no Lennon.
+    setStatus("Ovo capturado; TP para Forest...", Color3.fromRGB(100, 255, 140))
+    local back1, backReason = tweenMove(WP[6].pos, WP[6].speed, true)
+    if not back1 then restoreDS(); return false, backReason end
+    local back2, backReason2 = tweenMove(WP[7].pos, WP[7].speed, true)
+    if not back2 then restoreDS(); return false, backReason2 end
+
+    -- Janela de 2–3 s para a troca da hitbox fake pela real.
+    setStatus("Sincronizando hitbox real...", Color3.fromRGB(255, 220, 100))
+    task.wait(2.5)
     local delivered, deliveryReason = walkToDelivery()
     if not delivered then return false, deliveryReason end
     return true, "ok"
