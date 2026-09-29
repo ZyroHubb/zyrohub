@@ -494,27 +494,12 @@ local function walkToDelivery()
     return true, "ok"
 end
 
-local function runInstantStealLennon()
-    setStatus("Instant Steal Lennon: procurando ovo...", Color3.fromRGB(255, 200, 100))
-    local egg, err = getBestEgg()
-    if not egg or not egg.BottomCFrame then return false, err or "ovo invalido" end
-    local char = lp.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if not root or not hum or hum.Health <= 0 then return false, "personagem indisponivel" end
-
-    -- Lennon Instant: salvar a safe zone, viajar com o corpo real e voltar por CFrame.
-    local safeCFrame = root.CFrame
-    local target = egg.BottomCFrame.Position + Vector3.new(0, 3, 0)
-    local flat = Vector3.new(target.X - root.Position.X, 0, target.Z - root.Position.Z)
-    if flat.Magnitude > 0.01 then target -= flat.Unit * 3 end
-    setStatus("Instant Steal Lennon: ida rapida...", Color3.fromRGB(100, 200, 255))
-    local ok, reason = tweenMove(target, 5000, true)
-    if not ok then return false, reason end
-    task.wait(0.05)
-
-    local event = networking and networking:FindFirstChild("RE/EggWorld/FieldEggCarry")
+local function chilliCarryAtEgg(egg, timeout)
+    timeout = tonumber(timeout) or 1.5
+    if not egg or not egg.Uid or not egg.BottomCFrame then return false, "ovo invalido" end
+    local targetPos = egg.BottomCFrame.Position
     local invoke = networking and networking:FindFirstChild("RF/EggWorld/AskFieldEggCarry")
+    local event = networking and networking:FindFirstChild("RE/EggWorld/FieldEggCarry")
     local confirmed = false
     local connection
     if event and event:IsA("RemoteEvent") then
@@ -525,29 +510,68 @@ local function runInstantStealLennon()
             end
         end)
     end
-
-    -- O Lennon mantém o spam por até 60 tentativas, em vez de uma chamada única.
-    setStatus("Instant Steal Lennon: capturando...", Color3.fromRGB(255, 200, 100))
-    for i = 1, 60 do
-        if confirmed then break end
-        if EggState and type(EggState.CarryFieldEgg) == "function" then
-            local callOk, callResult = pcall(EggState.CarryFieldEgg, egg.Uid, nil)
-            if callOk and callResult == true then confirmed = true end
+    local started = os.clock()
+    local misses = 0
+    while os.clock() - started < timeout and not confirmed do
+        local nearest, distance
+        for _, child in ipairs(workspace:GetChildren()) do
+            if child.Name == "SmartPromptPart" and child:IsA("BasePart") then
+                local prompt = child:FindFirstChild("CarryAreaEgg")
+                if prompt and prompt:IsA("ProximityPrompt") then
+                    local d = (child.Position - targetPos).Magnitude
+                    if d <= 14 and (not distance or d < distance) then
+                        nearest, distance = prompt, d
+                    end
+                end
+            end
         end
-        if invoke and invoke:IsA("RemoteFunction") then
-            local callOk, callResult = pcall(invoke.InvokeServer, invoke, {Uid = egg.Uid})
-            if callOk and callResult == true then confirmed = true end
+        if nearest then
+            pcall(function() nearest.HoldDuration = 0 end)
+            if typeof(fireproximityprompt) == "function" then
+                pcall(fireproximityprompt, nearest)
+            end
+            misses = 0
+        else
+            misses += 1
+            if EggState and type(EggState.CarryFieldEgg) == "function" then
+                local ok, result = pcall(EggState.CarryFieldEgg, egg.Uid)
+                if ok and result == true then confirmed = true end
+            end
+            if invoke and invoke:IsA("RemoteFunction") then
+                local ok, result = pcall(invoke.InvokeServer, invoke, {Uid = egg.Uid})
+                if ok and result == true then confirmed = true end
+            end
+            if misses >= 4 then break end
         end
         RunService.Heartbeat:Wait()
-        task.wait(0.04)
     end
     if connection then connection:Disconnect() end
-    if not confirmed then
-        return false, "carry nao confirmado"
-    end
+    return confirmed, confirmed and "ok" or "not confirmed"
+end
 
-    -- Retorno Lennon: teleporte único para a safe zone original, não uma rota de micro-TPs.
-    setStatus("Instant Steal Lennon: retornando...", Color3.fromRGB(100, 255, 140))
+local function runInstantStealLennon()
+    setStatus("Instant Steal: procurando ovo...", Color3.fromRGB(255, 200, 100))
+    local egg, err = getBestEgg()
+    if not egg or not egg.BottomCFrame then return false, err or "ovo invalido" end
+    local char = lp.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not root or not hum or hum.Health <= 0 then return false, "personagem indisponivel" end
+
+    local safeCFrame = root.CFrame
+    local target = egg.BottomCFrame.Position + Vector3.new(0, 3, 0)
+    local flat = Vector3.new(target.X - root.Position.X, 0, target.Z - root.Position.Z)
+    if flat.Magnitude > 0.01 then target -= flat.Unit * 3 end
+    setStatus("Instant Steal: ida rapida...", Color3.fromRGB(100, 200, 255))
+    local ok, reason = tweenMove(target, 5000, true)
+    if not ok then return false, reason end
+    task.wait(0.05)
+
+    setStatus("Instant Steal: prompt/carry...", Color3.fromRGB(255, 200, 100))
+    local carried, carryReason = chilliCarryAtEgg(egg, 1.5)
+    if not carried then return false, carryReason end
+
+    setStatus("Instant Steal: retorno...", Color3.fromRGB(100, 255, 140))
     root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
     if not root then return false, "HRP sumiu" end
     pcall(function()
