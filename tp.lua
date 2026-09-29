@@ -1,5 +1,5 @@
--- ZYRO AUTO STEAL v8 - TP em pedaços (anti-anti-cheat) + voar de volta
-print("[Zyro] v8 iniciando...")
+-- ZYRO AUTO STEAL v9 - voo lento e suave (anti-anti-cheat)
+print("[Zyro] v9 iniciando...")
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -133,11 +133,8 @@ pcall(function() networking = ReplicatedStorage:WaitForChild("Packages", 5):Wait
 pcall(function() Assets = require(ReplicatedStorage:WaitForChild("Data", 5):WaitForChild("Assets", 5)) end)
 pcall(function() Mutations = require(ReplicatedStorage:WaitForChild("Shared", 5):WaitForChild("Modules", 5):WaitForChild("Mutations", 5)) end)
 
--- Waypoints do Lennon (usados pra voltar)
+-- Waypoints do Lennon
 local WP = {
-    [1] = Vector3.new(3340.17, 70.52, -331.08),
-    [2] = Vector3.new(2894.71, 75.64, -327.45),
-    [3] = Vector3.new(1923.22, 75.64, -330.11),
     [4] = Vector3.new(767.54, 70.51, -327.81),
     [5] = Vector3.new(596.65, 70.52, -316.80),
     [6] = Vector3.new(573.61, 70.52, -327.54),
@@ -221,11 +218,10 @@ local function applyDS()
 end
 
 -- ============================================================
--- TP SEGMENTADO (a chave do anti-anti-cheat)
--- Em vez de um TP gigante, quebra em pedaços de ~500 studs
+-- TP SEGMENTADO LENTO (250 studs / velocidade 500)
 -- ============================================================
 local function tpSegmentado(destino, maxSegmento)
-    maxSegmento = maxSegmento or 500
+    maxSegmento = maxSegmento or 250
     local char = lp.Character
     if not char then return false end
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -234,8 +230,17 @@ local function tpSegmentado(destino, maxSegmento)
     applyDS()
     RunService.Heartbeat:Wait()
 
+    -- Sobe 40 studs
+    local startPos = hrp.Position
+    local highY = startPos.Y + 40
+    local upTween = TweenService:Create(hrp, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = CFrame.new(Vector3.new(startPos.X, highY, startPos.Z))})
+    upTween:Play()
+    upTween.Completed:Wait()
+    RunService.Heartbeat:Wait()
+
+    -- Voa em segmentos de 250 studs a 500 studs/s
     local seguranca = 0
-    while seguranca < 50 do
+    while seguranca < 60 do
         seguranca = seguranca + 1
         char = lp.Character
         if not char then break end
@@ -247,26 +252,29 @@ local function tpSegmentado(destino, maxSegmento)
         local dist = vector.Magnitude
 
         if dist < 5 then
-            -- chegou
+            -- Desce
+            local groundPos = Vector3.new(destino.X, destino.Y, destino.Z)
+            local downTween = TweenService:Create(hrp, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {CFrame = CFrame.new(groundPos)})
+            downTween:Play()
+            downTween.Completed:Wait()
             pcall(function()
-                hrp.CFrame = CFrame.new(destino)
+                hrp.CFrame = CFrame.new(groundPos)
                 hrp.AssemblyLinearVelocity = Vector3.zero
                 hrp.AssemblyAngularVelocity = Vector3.zero
             end)
             return true
         end
 
-        -- Ponto intermediário
         local step = math.min(dist, maxSegmento)
         local dir = vector.Unit
         local nextPos = Vector3.new(
             myPos.X + dir.X * step,
-            destino.Y,  -- Y do destino (pra não cair)
+            destino.Y + 40,
             myPos.Z + dir.Z * step
         )
 
-        -- Tween do segmento (velocidade moderada)
-        local duration = math.max(step / 1200, 0.15)
+        -- Velocidade 500 (devagar)
+        local duration = math.max(step / 500, 0.3)
         local targetCF = CFrame.new(nextPos)
         local tween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCF})
         tween:Play()
@@ -363,7 +371,7 @@ local function carryEgg(uid)
 end
 
 -- ============================================================
--- AUTO STEAL v8
+-- AUTO STEAL
 -- ============================================================
 local autoRunning = false
 
@@ -382,17 +390,17 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
                     continue
                 end
 
-                -- 2) TP pro ovo SEGMENTADO (não morre)
+                -- 2) TP SEGMENTADO LENTO (250 studs)
                 setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
                 local posOvo = egg.BottomCFrame.Position
-                tpSegmentado(posOvo, 500)
+                tpSegmentado(posOvo, 250)
                 if not autoRunning then break end
-                task.wait(0.3)
+                task.wait(0.5)
 
                 -- 3) Spam carry
                 setStatus("Pegando ovo...", Color3.fromRGB(255, 200, 100))
                 local carried = false
-                for i = 1, 20 do
+                for i = 1, 25 do
                     if not autoRunning then break end
                     if carryEgg(egg.Uid) then
                         carried = true
@@ -406,37 +414,32 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
                     continue
                 end
                 setStatus("Ovo na mao!", Color3.fromRGB(100, 255, 140))
+                task.wait(0.5)
 
-                -- 4) Volta VOANDO (igual Lennon) - segmentado
-                task.wait(0.3)
-                
-                -- WP4 (mais próximo do ovo)
+                -- 4) Volta voando LENTO
                 setStatus("Voando p/ WP4...", Color3.fromRGB(100, 200, 255))
-                tpSegmentado(WP[4], 500)
+                tpSegmentado(WP[4], 250)
                 if not autoRunning then break end
 
-                -- WP5
                 setStatus("Voando p/ WP5...", Color3.fromRGB(100, 200, 255))
-                tpSegmentado(WP[5], 500)
+                tpSegmentado(WP[5], 250)
                 if not autoRunning then break end
 
-                -- WP6
                 setStatus("Voando p/ WP6...", Color3.fromRGB(100, 200, 255))
-                tpSegmentado(WP[6], 500)
+                tpSegmentado(WP[6], 250)
                 if not autoRunning then break end
 
-                -- WP7 (Forest)
                 setStatus("Voando p/ WP7 (Forest)...", Color3.fromRGB(100, 200, 255))
-                tpSegmentado(WP[7], 500)
+                tpSegmentado(WP[7], 250)
                 if not autoRunning then break end
 
-                -- 5) Cruza a safe zone (X+)
+                -- 5) Cruza safe zone
                 setStatus("Cruzando safe zone...", Color3.fromRGB(100, 255, 140))
                 local char = lp.Character
                 local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 if hrp then
                     local safeZone = hrp.Position + Vector3.new(60, 0, 0)
-                    tpSegmentado(safeZone, 300)
+                    tpSegmentado(safeZone, 200)
                 end
 
                 setStatus("Ciclo ok! Reiniciando...", Color3.fromRGB(100, 255, 140))
@@ -451,7 +454,7 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
 end
 
 -- ============================================================
--- TP PRO MELHOR OVO (segmentado também)
+-- TP PRO MELHOR OVO
 -- ============================================================
 _G._zyroCallbacks["TP pro melhor ovo"] = function(ativo)
     if ativo then
@@ -463,7 +466,7 @@ _G._zyroCallbacks["TP pro melhor ovo"] = function(ativo)
             return
         end
         setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
-        tpSegmentado(egg.BottomCFrame.Position, 500)
+        tpSegmentado(egg.BottomCFrame.Position, 250)
         task.wait(0.3)
         restoreDS()
         setStatus("OK: " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 255, 140))
@@ -471,4 +474,4 @@ _G._zyroCallbacks["TP pro melhor ovo"] = function(ativo)
     end
 end
 
-print("[Zyro] v8 carregado! TP segmentado ativo.")
+print("[Zyro] v9 carregado! Voo lento (250 studs / 500 studs/s)")
