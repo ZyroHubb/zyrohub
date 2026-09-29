@@ -559,27 +559,44 @@ local function runInstantStealLennon()
     if not root or not hum or hum.Health <= 0 then return false, "personagem indisponivel" end
 
     local safeCFrame = root.CFrame
+    if not applyDS() then return false, "desync indisponivel" end
+    local function instantTeleportBack()
+        local currentChar = lp.Character
+        local current = currentChar and currentChar:FindFirstChild("HumanoidRootPart")
+        if currentChar then pcall(function() currentChar:PivotTo(safeCFrame) end) end
+        if current then
+            pcall(function()
+                current.AssemblyLinearVelocity = Vector3.zero
+                current.AssemblyAngularVelocity = Vector3.zero
+                current.CFrame = safeCFrame
+            end)
+        end
+    end
+    local function safeReturn(reason)
+        instantTeleportBack()
+        task.wait(0.35)
+        restoreDS()
+        return false, reason
+    end
+
     local target = egg.BottomCFrame.Position + Vector3.new(0, 3, 0)
     local flat = Vector3.new(target.X - root.Position.X, 0, target.Z - root.Position.Z)
     if flat.Magnitude > 0.01 then target -= flat.Unit * 3 end
-    setStatus("Instant Steal: ida rapida...", Color3.fromRGB(100, 200, 255))
-    local ok, reason = tweenMove(target, 5000, true)
-    if not ok then return false, reason end
+    setStatus("Instant Steal: ida rapida protegida...", Color3.fromRGB(100, 200, 255))
+    local ok, reason = tweenMove(target, 600, true)
+    if not ok then return safeReturn(reason) end
     task.wait(0.05)
 
     setStatus("Instant Steal: prompt/carry...", Color3.fromRGB(255, 200, 100))
     local carried, carryReason = chilliCarryAtEgg(egg, 1.5)
-    if not carried then return false, carryReason end
+    if not carried then return safeReturn(carryReason) end
 
-    setStatus("Instant Steal: retorno...", Color3.fromRGB(100, 255, 140))
-    root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return false, "HRP sumiu" end
-    pcall(function()
-        root.AssemblyLinearVelocity = Vector3.zero
-        root.AssemblyAngularVelocity = Vector3.zero
-        root.CFrame = safeCFrame
-    end)
+    setStatus("Instant Steal: retorno protegido...", Color3.fromRGB(100, 255, 140))
+    local current = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    if not current then return safeReturn("HRP sumiu") end
+    instantTeleportBack()
     task.wait(0.5)
+    restoreDS()
     return true, "ok"
 end
 
