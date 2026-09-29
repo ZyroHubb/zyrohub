@@ -23,7 +23,7 @@ pcall(function() sg.Parent = parent end)
 if not sg.Parent then warn("[Zyro] sem ScreenGui"); return end
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.fromOffset(240, 180)
+frame.Size = UDim2.fromOffset(240, 140)
 frame.Position = UDim2.new(0, 20, 0, 100)
 frame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
 frame.BorderSizePixel = 0
@@ -59,8 +59,7 @@ local function btn(texto, y, cor)
 end
 
 local btnAuto = btn("AUTO STEAL (ciclo)", 38, Color3.fromRGB(180, 40, 40))
-local btnSteal = btn("TP pro melhor ovo", 78, Color3.fromRGB(140, 60, 40))
-local btnHome = btn("TP pra Forest", 118, Color3.fromRGB(40, 80, 180))
+local btnInstant = btn("INSTANT STEAL", 78, Color3.fromRGB(140, 60, 40))
 
 local status = Instance.new("TextLabel")
 status.Size = UDim2.new(1, 0, 0, 20)
@@ -340,21 +339,47 @@ local function getBestEgg()
     return nil, "sem ovos"
 end
 
-local function carryEgg(uid)
-    if EggState and type(EggState.CarryFieldEgg) == "function" then
-        local ok, r = pcall(EggState.CarryFieldEgg, uid)
-        if ok and r ~= false then return true, "EggState" end
+local function carryEgg(uid, timeout)
+    timeout = tonumber(timeout) or 2.5
+    if not uid or not networking then return false, "uid invalido" end
+    local invoke = networking:FindFirstChild("RF/EggWorld/AskFieldEggCarry")
+    local event = networking:FindFirstChild("RE/EggWorld/FieldEggCarry")
+    local confirmed = false
+    local connection
+    if event and event:IsA("RemoteEvent") then
+        connection = event.OnClientEvent:Connect(function(payload)
+            if type(payload) == "table" and tostring(payload.Uid) == tostring(uid)
+                and (payload.CarrierUserId == nil or payload.CarrierUserId == lp.UserId) then
+                confirmed = true
+            end
+        end)
     end
-    if networking then
-        local rf = networking:FindFirstChild("RF/EggWorld/AskFieldEggCarry")
-        if rf then
-            local ok, r = pcall(function()
-                return rf:InvokeServer({Uid = uid})
-            end)
-            if ok and r == true then return true, "Remote" end
+    local started = os.clock()
+    local last = 0
+    local source = "none"
+    while os.clock() - started < timeout and autoRunning ~= false do
+        if confirmed then
+            if connection then connection:Disconnect() end
+            return true, "event"
         end
+        if os.clock() - last >= 0.05 then
+            last = os.clock()
+            if EggState and type(EggState.CarryFieldEgg) == "function" then
+                local ok, result = pcall(EggState.CarryFieldEgg, uid)
+                if ok and result ~= false then source = "EggState" end
+            end
+            if invoke and invoke:IsA("RemoteFunction") then
+                local ok, result = pcall(invoke.InvokeServer, invoke, {Uid = uid})
+                if ok and result == true then
+                    confirmed = true
+                    source = "Remote"
+                end
+            end
+        end
+        RunService.Heartbeat:Wait()
     end
-    return false, "falha carry"
+    if connection then connection:Disconnect() end
+    return confirmed, confirmed and source or "timeout"
 end
 
 -- ============================================================
@@ -364,6 +389,60 @@ local autoRunning = false
 local function setStatus(txt, color)
     status.Text = txt
     status.TextColor3 = color or Color3.fromRGB(180, 180, 200)
+end
+
+local function walkToDelivery()
+    restoreDS()
+    task.wait(0.15)
+    local char = lp.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not hum or not root then return false, "personagem indisponivel" end
+    local started = os.clock()
+    while autoRunning and os.clock() - started < 10 do
+        char = lp.Character
+        hum = char and char:FindFirstChildOfClass("Humanoid")
+        root = char and char:FindFirstChild("HumanoidRootPart")
+        if not hum or not root or hum.Health <= 0 then return false, "personagem morreu" end
+        hum:MoveTo(root.Position + Vector3.new(50, 0, 0))
+        task.wait(0.15)
+    end
+    pcall(function() hum:MoveTo(root.Position) end)
+    return true, "ok"
+end
+
+local function runStealCycle(single)
+    setStatus("Procurando ovo...", Color3.fromRGB(255, 200, 100))
+    local egg, err = getBestEgg()
+    if not egg then return false, err end
+    if not egg.BottomCFrame or not egg.BottomCFrame.Position then return false, "ovo sem posição" end
+
+    setStatus("Teleguiado p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
+    -- O desync permanece ativo durante a aproximação e a coleta; não restaurar no ovo evita a morte.
+    local ok, reason = guidedMove(egg.BottomCFrame.Position, 150, 3, true, {
+        useDesync = true, tolerance = 1.5, timeout = 45,
+    })
+    if not ok then return false, "movimento: " .. tostring(reason) end
+    task.wait(0.12)
+
+    setStatus("Instant Steal: confirmando...", Color3.fromRGB(255, 200, 100))
+    local carried, carryReason = carryEgg(egg.Uid, 3)
+    if not carried then
+        restoreDS()
+        return false, "carry: " .. tostring(carryReason)
+    end
+    setStatus("Ovo carregado; retornando...", Color3.fromRGB(100, 255, 140))
+
+    local routeOk, routeReason = guidedRoute({WP[5], WP[6], WP[7]}, {
+        gap = 0.12, lookAtTarget = true, tolerance = 1.5,
+    })
+    if not routeOk then
+        restoreDS()
+        return false, "rota: " .. tostring(routeReason)
+    end
+    local delivered, deliveryReason = walkToDelivery()
+    if not delivered then return false, deliveryReason end
+    return true, "ok"
 end
 
 btnAuto.MouseButton1Click:Connect(function()
@@ -376,120 +455,40 @@ btnAuto.MouseButton1Click:Connect(function()
     end
     autoRunning = true
     setStatus("AUTO STEAL iniciado", Color3.fromRGB(100, 255, 140))
-
     task.spawn(function()
         while autoRunning do
-            -- 1) Achar o melhor ovo
-            setStatus("Procurando ovo...", Color3.fromRGB(255, 200, 100))
-            local egg, err = getBestEgg()
-            if not egg then
-                setStatus("Sem ovo: " .. tostring(err), Color3.fromRGB(255, 100, 100))
-                task.wait(2)
-                continue
-            end
-
-            -- 2) TP voando pro ovo (LENTO + offset 3)
-            setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
-            local ok = tpSlow(egg.BottomCFrame.Position, 800, 3, true)
-            if not ok then
-                setStatus("TP egg falhou", Color3.fromRGB(255, 100, 100))
-                task.wait(1)
-                continue
-            end
-            task.wait(0.3)
-
-            -- 3) Pega o ovo (spam igual Lennon)
-            setStatus("Pegando ovo...", Color3.fromRGB(255, 200, 100))
-            local carried = false
-            for i = 1, 20 do
-                if not autoRunning then break end
-                local cok = carryEgg(egg.Uid)
-                if cok then
-                    carried = true
-                    break
-                end
-                task.wait(0.05)
-            end
-            if not carried then
-                setStatus("Nao consegui pegar", Color3.fromRGB(255, 100, 100))
-                restoreDS()
-                task.wait(1)
-                continue
-            end
-            setStatus("Ovo na mão, voltando...", Color3.fromRGB(100, 255, 140))
-
-            -- 4) Volta pelos waypoints (LENTO)
-            restoreDS()  -- devolve humanoid real pra andar
-            task.wait(0.2)
-
-            -- Rota teleguiada de retorno pelos waypoints 5 -> 7.
-            setStatus("Rota guiada: WP5...", Color3.fromRGB(100, 200, 255))
-            local routeOk, routeReason = guidedRoute({WP[5], WP[6], WP[7]}, {gap=0.2})
-            if not routeOk then
-                setStatus("Rota interrompida: " .. tostring(routeReason), Color3.fromRGB(255, 100, 100))
-                task.wait(1)
-                continue
-            end
-
-            -- 5) Anda até safe zone (com humanoid real)
+            local ok, reason = runStealCycle(false)
             restoreDS()
-            task.wait(0.1)
-            setStatus("Andando ate safe zone...", Color3.fromRGB(100, 255, 140))
-            local char = lp.Character
-            local hum = char and char:FindFirstChildOfClass("Humanoid")
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            if hum and hrp then
-                local start = tick()
-                while autoRunning and tick() - start < 10 do
-                    local curHrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-                    if not curHrp then break end
-                    -- Anda pra FRENTE (X+)
-                    local target = curHrp.Position + Vector3.new(50, 0, 0)
-                    hum:MoveTo(target)
-                    task.wait(0.15)
-                end
-                pcall(function() hum:MoveTo(hrp.Position) end)
+            if not ok then
+                setStatus("Auto Steal: " .. tostring(reason), Color3.fromRGB(255, 100, 100))
+                task.wait(1)
+            else
+                setStatus("Ciclo concluído; procurando próximo...", Color3.fromRGB(100, 255, 140))
+                task.wait(0.35)
             end
-            task.wait(1)
-            setStatus("Ciclo concluido, reiniciando...", Color3.fromRGB(100, 255, 140))
-            task.wait(0.3)
         end
+        restoreDS()
     end)
 end)
 
--- TP pro melhor ovo (só teleporta, LENTO)
-btnSteal.MouseButton1Click:Connect(function()
-    setStatus("Procurando ovo...", Color3.fromRGB(255, 200, 100))
-    local egg, err = getBestEgg()
-    if not egg then
-        setStatus("Erro: " .. tostring(err), Color3.fromRGB(255, 100, 100))
+-- INSTANT STEAL manual: uma coleta completa sem iniciar o loop.
+btnInstant.MouseButton1Click:Connect(function()
+    if autoRunning then
+        setStatus("Pare o Auto Steal antes do Instant Steal", Color3.fromRGB(255, 180, 80))
         return
     end
-    setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
-    local ok = tpSlow(egg.BottomCFrame.Position, 800, 3, true)
-    task.wait(0.3)
-    restoreDS()
-    if ok then
-        setStatus("OK: " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 255, 140))
-    else
-        setStatus("Falha", Color3.fromRGB(255, 100, 100))
-    end
+    autoRunning = true
+    task.spawn(function()
+        local ok, reason = runStealCycle(true)
+        autoRunning = false
+        restoreDS()
+        if ok then
+            setStatus("Instant Steal concluído", Color3.fromRGB(100, 255, 140))
+        else
+            setStatus("Instant Steal: " .. tostring(reason), Color3.fromRGB(255, 100, 100))
+        end
+    end)
 end)
-
--- TP pra Forest (via WP7)
-btnHome.MouseButton1Click:Connect(function()
-    setStatus("TP pra Forest...", Color3.fromRGB(100, 200, 255))
-    local ok = tpSlow(WP[7].pos, 1000, 0)
-    task.wait(0.3)
-    restoreDS()
-    if ok then
-        setStatus("Forest OK", Color3.fromRGB(100, 255, 140))
-    else
-        setStatus("Falha", Color3.fromRGB(255, 100, 100))
-    end
-end)
-
-print("[Zyro] v6 carregado!")
 
 pcall(function()
     sg.AncestryChanged:Connect(function(_, parent)
