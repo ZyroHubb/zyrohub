@@ -1,5 +1,5 @@
--- ZYRO AUTO STEAL v17 - direto, mesma vel, sem parar
-print("[Zyro] v17 iniciando...")
+-- ZYRO AUTO STEAL v18 - waypoints dinâmicos + anti-parada
+print("[Zyro] v18 iniciando...")
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -133,13 +133,54 @@ pcall(function() networking = ReplicatedStorage:WaitForChild("Packages", 5):Wait
 pcall(function() Assets = require(ReplicatedStorage:WaitForChild("Data", 5):WaitForChild("Assets", 5)) end)
 pcall(function() Mutations = require(ReplicatedStorage:WaitForChild("Shared", 5):WaitForChild("Modules", 5):WaitForChild("Mutations", 5)) end)
 
--- SAFE ZONE (X bem alto, longe de Forest)
+-- SAFE ZONE (X bem alto, longe de tudo)
 local SAFE_ZONE_POS = Vector3.new(700, 70.5, -364)
 
 -- Config
 local VOO_ALTO = 25
 local VELOCIDADE = 400
 local SEGMENTO = 200
+
+-- ============================================================
+-- MAPA DINÂMICO (lê as áreas do jogo em tempo real)
+-- ============================================================
+local Areas = nil
+pcall(function() Areas = ReplicatedStorage:WaitForChild("Data", 5):WaitForChild("Areas", 5) end)
+
+local function getAreaData()
+    if not Areas then return nil end
+    local ok, data = pcall(function() return require(Areas) end)
+    if ok and type(data) == "table" and type(data.Directory) == "table" then
+        return data.Directory
+    end
+    return nil
+end
+
+local function getAreaCenterFromGame(areaId)
+    -- Lê a área do jogo (workspace.__OBJECTS.Areas)
+    local objects = workspace:FindFirstChild("__OBJECTS")
+    if not objects then return nil end
+    local areas = objects:FindFirstChild("Areas")
+    if not areas then return nil end
+    local areaObj = areas:FindFirstChild(areaId)
+    if not areaObj then return nil end
+    local ok, cf = pcall(function()
+        if areaObj:IsA("Model") then
+            return areaObj:GetPivot()
+        elseif areaObj:IsA("BasePart") then
+            return areaObj.CFrame
+        end
+    end)
+    return ok and cf and cf.Position or nil
+end
+
+-- Waypoints seguros (evitam guards de Forest e Lake)
+-- Baseado no Lennon: WP4 (767, 70, -327), WP5 (596, 70, -316), WP6 (573, 70, -327), WP7 (540, 70, -356)
+local WAYPOINTS_SEGUROS = {
+    Vector3.new(767.54, 70.51, -327.81),  -- WP4: longe do Lake
+    Vector3.new(596.65, 70.52, -316.80),  -- WP5: perto da safe zone
+    Vector3.new(573.61, 70.52, -327.54),  -- WP6: dentro da safe zone
+}
 
 -- ============================================================
 -- ESTADO
@@ -224,7 +265,7 @@ local function applyDS()
 end
 
 -- ============================================================
--- TP SEM PARAR (vai direto pro destino)
+-- TP DIRETO (sem parar em Forest/Lake)
 -- ============================================================
 local function tpDireto(destino)
     local char = lp.Character
@@ -236,6 +277,9 @@ local function tpDireto(destino)
     RunService.Heartbeat:Wait()
 
     local seguranca = 0
+    local lastPos = hrp.Position
+    local paradoCount = 0
+
     while seguranca < 150 do
         if not autoRunning then return false end
         seguranca = seguranca + 1
@@ -248,7 +292,7 @@ local function tpDireto(destino)
         local vector = Vector3.new(destino.X - myPos.X, 0, destino.Z - myPos.Z)
         local dist = vector.Magnitude
 
-        -- Só desce no FINAL (dist < 5)
+        -- Chegou
         if dist < 5 then
             local groundPos = Vector3.new(destino.X, destino.Y, destino.Z)
             local downTween = TweenService:Create(hrp, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {CFrame = CFrame.new(groundPos)})
@@ -264,7 +308,31 @@ local function tpDireto(destino)
             return true
         end
 
-        -- Vai DIRETO pro destino (SEM parar, SEM descer)
+        -- ANTI-PARADA: se ficar 3 segundos sem se mover, força TP
+        local moved = (myPos - lastPos).Magnitude
+        if moved < 1 then
+            paradoCount = paradoCount + 1
+            if paradoCount >= 15 then  -- 1.5s parado
+                -- FORÇA ir mais longe
+                local forceStep = math.min(dist, SEGMENTO * 2)
+                local dir = vector.Unit
+                local nextPos = Vector3.new(
+                    myPos.X + dir.X * forceStep,
+                    destino.Y + VOO_ALTO + 10,  -- sobe mais
+                    myPos.Z + dir.Z * forceStep
+                )
+                pcall(function()
+                    hrp.CFrame = CFrame.new(nextPos)
+                    hrp.AssemblyLinearVelocity = Vector3.zero
+                    hrp.AssemblyAngularVelocity = Vector3.zero
+                end)
+                paradoCount = 0
+            end
+        else
+            paradoCount = 0
+        end
+        lastPos = myPos
+
         local step = math.min(dist, SEGMENTO)
         local dir = vector.Unit
         local nextPos = Vector3.new(
@@ -300,9 +368,22 @@ local function tpDireto(destino)
             hrp.AssemblyLinearVelocity = Vector3.zero
             hrp.AssemblyAngularVelocity = Vector3.zero
         end)
-        -- SEM pausa! Vai direto pro próximo segmento
     end
     return false
+end
+
+-- ============================================================
+-- TP COM WAYPOINTS SEGUROS (evita guards de Forest/Lake)
+-- ============================================================
+local function tpComWaypoints(destinoFinal)
+    -- Vai pelos waypoints seguros antes de cruzar
+    for _, wp in ipairs(WAYPOINTS_SEGUROS) do
+        if not autoRunning then return false end
+        local ok = tpDireto(wp)
+        if not ok then return false end
+    end
+    -- Depois cruza direto pra safe zone
+    return tpDireto(destinoFinal)
 end
 
 -- ============================================================
@@ -398,7 +479,7 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
                     continue
                 end
 
-                -- 2) IR pro ovo (tpDireto, mesma velocidade, voo alto)
+                -- 2) IR pro ovo (tpDireto, voo alto)
                 setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
                 local ok = tpDireto(egg.BottomCFrame.Position)
                 if not autoRunning then break end
@@ -428,9 +509,9 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
                 setStatus("Ovo na mao!", Color3.fromRGB(100, 255, 140))
                 task.wait(0.2)
 
-                -- 4) DIRETO PRA SAFE ZONE (tpDireto, mesma velocidade, voo alto, SEM PARAR)
-                setStatus("Direto pra safe zone...", Color3.fromRGB(100, 255, 140))
-                tpDireto(SAFE_ZONE_POS)
+                -- 4) VOLTA COM WAYPOINTS SEGUROS (evita Forest/Lake)
+                setStatus("Voltando com waypoints...", Color3.fromRGB(100, 255, 140))
+                tpComWaypoints(SAFE_ZONE_POS)
                 if not autoRunning then break end
 
                 -- 5) Confirma entrega
@@ -479,4 +560,4 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
     end
 end
 
-print("[Zyro] v17 carregado! Direto pra safe, mesma velocidade")
+print("[Zyro] v18 carregado! Waypoints seguros + anti-parada")
