@@ -1,5 +1,5 @@
--- ZYRO AUTO STEAL v12 - sem ligarVoo (só desync + tween)
-print("[Zyro] v12 iniciando...")
+-- ZYRO AUTO STEAL v14 - ir devagar, voltar RÁPIDO
+print("[Zyro] v14 iniciando...")
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -7,9 +7,7 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local lp = Players.LocalPlayer
 
--- ============================================================
 -- UI
--- ============================================================
 local parent = nil
 pcall(function() parent = game:GetService("CoreGui") end)
 if not parent then parent = lp:WaitForChild("PlayerGui") end
@@ -147,7 +145,7 @@ local autoRunning = false
 local tweenAtual = nil
 
 -- ============================================================
--- DESYNC (SEM PlatformStand)
+-- DESYNC
 -- ============================================================
 local ds = {real=nil, fake=nil, char=nil, active=false}
 
@@ -200,7 +198,6 @@ local function applyDS()
 
     real.Parent = nil
     fake.Parent = char
-    -- NÃO mexe em PlatformStand! Deixa false
     fake.PlatformStand = false
     fake.Sit = false
     fake.AutoRotate = true
@@ -224,24 +221,23 @@ local function applyDS()
 end
 
 -- ============================================================
--- TP SUAVE (sem subir, sem parar, sem PlatformStand)
+-- TP (parâmetros customizáveis - IR devagar, VOLTAR rápido)
 -- ============================================================
-local function tpSuave(destino, maxSegmento)
-    maxSegmento = maxSegmento or 300
+local function tpCustom(destino, maxSegmento, velocidade, pausa)
+    maxSegmento = maxSegmento or 150
+    velocidade = velocidade or 250
+    pausa = pausa or 0.15
     local char = lp.Character
     if not char then return false end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return false end
 
-    -- Só aplica desync (sem ligarVoo)
     applyDS()
     RunService.Heartbeat:Wait()
 
     local seguranca = 0
-    while seguranca < 60 do
-        if not autoRunning then
-            return false
-        end
+    while seguranca < 100 do
+        if not autoRunning then return false end
         seguranca = seguranca + 1
         char = lp.Character
         if not char then break end
@@ -254,7 +250,7 @@ local function tpSuave(destino, maxSegmento)
 
         if dist < 5 then
             local groundPos = Vector3.new(destino.X, destino.Y, destino.Z)
-            local downTween = TweenService:Create(hrp, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {CFrame = CFrame.new(groundPos)})
+            local downTween = TweenService:Create(hrp, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {CFrame = CFrame.new(groundPos)})
             tweenAtual = downTween
             downTween:Play()
             downTween.Completed:Wait()
@@ -271,12 +267,11 @@ local function tpSuave(destino, maxSegmento)
         local dir = vector.Unit
         local nextPos = Vector3.new(
             myPos.X + dir.X * step,
-            destino.Y + 1,
+            destino.Y + 0,
             myPos.Z + dir.Z * step
         )
 
-        -- Velocidade 600 (não muito rápido)
-        local duration = math.max(step / 600, 0.2)
+        local duration = math.max(step / velocidade, 0.2)
         local targetCF = CFrame.new(nextPos)
         local tween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCF})
         tweenAtual = tween
@@ -289,7 +284,6 @@ local function tpSuave(destino, maxSegmento)
                 pcall(function() tween:Cancel() end)
                 return false
             end
-            -- Força o HRP a ficar com colisão
             pcall(function()
                 hrp.CanCollide = true
                 hrp.AssemblyLinearVelocity = Vector3.zero
@@ -304,6 +298,10 @@ local function tpSuave(destino, maxSegmento)
             hrp.AssemblyLinearVelocity = Vector3.zero
             hrp.AssemblyAngularVelocity = Vector3.zero
         end)
+
+        if pausa > 0 then
+            task.wait(pausa)
+        end
     end
     return false
 end
@@ -384,7 +382,7 @@ local function carryEgg(uid)
 end
 
 -- ============================================================
--- AUTO STEAL
+-- AUTO STEAL - IR devagar, VOLTAR rápido
 -- ============================================================
 _G._zyroCallbacks["Auto Steal"] = function(ativo)
     if ativo then
@@ -400,21 +398,21 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
                     continue
                 end
 
-                -- Voa pro ovo
+                -- IR DEVAGAR (250 studs/s, 150 por segmento)
                 setStatus("Voando p/ " .. tostring(egg.AssetCategory), Color3.fromRGB(100, 200, 255))
-                local ok = tpSuave(egg.BottomCFrame.Position, 300)
+                local ok = tpCustom(egg.BottomCFrame.Position, 150, 250, 0.15)
                 if not autoRunning then break end
                 if not ok then
                     setStatus("Falha no voo", Color3.fromRGB(255, 100, 100))
                     task.wait(0.5)
                     continue
                 end
-                task.wait(0.4)
+                task.wait(0.5)
 
                 -- Pega o ovo
                 setStatus("Pegando ovo...", Color3.fromRGB(255, 200, 100))
                 local carried = false
-                for i = 1, 25 do
+                for i = 1, 30 do
                     if not autoRunning then break end
                     if carryEgg(egg.Uid) then
                         carried = true
@@ -427,23 +425,23 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
                     task.wait(0.5)
                     continue
                 end
-                setStatus("Ovo na mao!", Color3.fromRGB(100, 255, 140))
-                task.wait(0.5)
+                setStatus("Ovo na mao, CORRENDO!", Color3.fromRGB(100, 255, 140))
+                task.wait(0.2)
 
-                -- Volta pelos waypoints
+                -- VOLTAR RÁPIDO (800 studs/s, 400 por segmento, SEM pausa)
                 for _, wpIdx in ipairs({4, 5, 6, 7}) do
                     if not autoRunning then break end
-                    setStatus("Voltando WP" .. wpIdx, Color3.fromRGB(100, 200, 255))
-                    tpSuave(WP[wpIdx], 300)
+                    setStatus("Correndo WP" .. wpIdx, Color3.fromRGB(100, 255, 140))
+                    tpCustom(WP[wpIdx], 400, 800, 0)
                 end
 
-                -- Cruza safe zone
+                -- Cruza safe zone RÁPIDO
                 if autoRunning then
-                    setStatus("Cruzando safe zone...", Color3.fromRGB(100, 255, 140))
+                    setStatus("CRUZANDO SAFE ZONE!", Color3.fromRGB(100, 255, 140))
                     local char = lp.Character
                     local hrp = char and char:FindFirstChild("HumanoidRootPart")
                     if hrp then
-                        tpSuave(hrp.Position + Vector3.new(80, 0, 0), 250)
+                        tpCustom(hrp.Position + Vector3.new(80, 0, 0), 400, 800, 0)
                     end
                 end
 
@@ -465,4 +463,4 @@ _G._zyroCallbacks["Auto Steal"] = function(ativo)
     end
 end
 
-print("[Zyro] v12 carregado! Sem PlatformStand, sem morte no ar.")
+print("[Zyro] v14 carregado! IR devagar, VOLTAR rápido")
