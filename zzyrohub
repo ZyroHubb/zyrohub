@@ -1,5 +1,22 @@
 -- luraph15 DEOBFUSCATED BY SXZZZZZZZ https://discord.gg/JsvR9vNYMA
 local fn, v, v2, defaultTab, Players, RunService, ReplicatedStorage, CoreGui, UserInputService, localPlayer
+-- Cleanup from older versions: remove only the old fullscreen loading overlay.
+do
+local containers = {game:GetService("CoreGui"), game:GetService("Players").LocalPlayer:FindFirstChildOfClass("PlayerGui")}
+if typeof(gethui) == "function" then
+local ok, result = pcall(gethui)
+if ok and typeof(result) == "Instance" then table.insert(containers, result) end
+end
+for _, container in ipairs(containers) do
+if container then
+for _, child in ipairs(container:GetChildren()) do
+if child:IsA("ScreenGui") and child.Name == "ZYRO_LoadingCover" then
+pcall(function() child:Destroy() end)
+end
+end
+end
+end
+end
 local networking, fn2, tbl, v3, fn3, fn4, tbl2, fn5, fn6, tbl3
 local tbl4, fn7, tbl5, v4, v5, espSection, tbl6, n, tbl7, tbl8
 local tbl9, tbl10, v6
