@@ -96,49 +96,27 @@ task.wait(1 + i * 0.5)
 end
 error("Chilli Library failed to load: ".. chilliLibraryFailedToLoad, 0)
 end
--- Hide Chilli screens while the external library initializes so only ZYRO is shown.
+-- Remove only stale Chilli screens that existed before startup.
+-- Newly-created launcher/main screens are left enabled so the ZYRO button remains clickable.
 local zyroHiddenChilliScreens = {}
-local zyroChilliGuardConnections = {}
-local function zyroFindChilliRoot(screen)
-if not screen or not screen:IsA("ScreenGui") then return false end
-if screen:GetAttribute("ChilliLibraryOwned") == true then return true end
-if screen.Name == "Settings" or screen.Name == "ChilliLeftCenter" or screen.Name == "ChilliLibrarySettings" or screen.Name == "ChilliLibraryLauncher" then return true end
-for _, item in ipairs(screen:GetDescendants()) do
-if (item:IsA("TextLabel") or item:IsA("TextButton")) and tostring(item.Text):lower():find("chilli hub", 1, true) then
-return true
-end
-end
-return false
-end
-local function zyroHideChilli(screen)
-if zyroFindChilliRoot(screen) then
-zyroHiddenChilliScreens[screen] = true
-pcall(function() screen.Enabled = false end)
-end
-end
-local function zyroScanChilli(container)
-if not container then return end
-for _, child in ipairs(container:GetChildren()) do
-zyroHideChilli(child)
-end
-end
 local zyroGuiContainers = {game:GetService("CoreGui")}
 if typeof(gethui) == "function" then
 local ok, result = pcall(gethui)
 if ok and typeof(result) == "Instance" then table.insert(zyroGuiContainers, result) end
 end
+local function zyroIsLegacyChilli(screen)
+if not screen or not screen:IsA("ScreenGui") then return false end
+if screen.Name == "Settings" or screen.Name == "ChilliLeftCenter" or screen.Name == "ChilliLibrarySettings" or screen.Name == "ChilliLibraryLauncher" then return true end
+return screen:GetAttribute("ChilliLibraryOwned") == true
+end
 for _, container in ipairs(zyroGuiContainers) do
-zyroScanChilli(container)
-zyroChilliGuardConnections[#zyroChilliGuardConnections + 1] = container.ChildAdded:Connect(zyroHideChilli)
+for _, child in ipairs(container:GetChildren()) do
+if zyroIsLegacyChilli(child) then
+zyroHiddenChilliScreens[child] = child.Enabled
+pcall(function() child.Enabled = false end)
 end
-local zyroChilliGuardActive = true
-task.spawn(function()
-for _ = 1, 240 do
-if not zyroChilliGuardActive then break end
-for _, container in ipairs(zyroGuiContainers) do zyroScanChilli(container) end
-task.wait(0.05)
 end
-end)
+end
 
 v = fn8()
 assert(type(v) == "table" and type(v.CreateWindow) == "function" and type(v.Finalize) == "function", "Chilli Library returned an invalid API.")
@@ -26818,12 +26796,7 @@ for _, descendant in ipairs(root:GetDescendants()) do applyZyroTheme(descendant)
 applyZyroTheme(root)
 root.DescendantAdded:Connect(function(descendant) task.defer(applyZyroTheme, descendant) end)
 
--- Reveal the finished ZYRO window only after its visual tree has been themed.
-zyroChilliGuardActive = false
-for screen in pairs(zyroHiddenChilliScreens) do
-pcall(function() screen.Enabled = true end)
-end
-for _, connection in ipairs(zyroChilliGuardConnections) do pcall(function() connection:Disconnect() end) end
+-- Legacy Chilli screens remain hidden; newly-created ZYRO launcher/main screens are untouched.
 end)
 
 task.defer(function()
