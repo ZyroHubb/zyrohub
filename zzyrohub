@@ -96,27 +96,8 @@ task.wait(1 + i * 0.5)
 end
 error("Chilli Library failed to load: ".. chilliLibraryFailedToLoad, 0)
 end
--- Cover the library initialization so the Chilli splash never flashes on screen.
--- This does not disable or intercept the launcher; it is removed after theming.
-local zyroGuiContainers = {game:GetService("CoreGui")}
-local zyroLoadingCover = Instance.new("ScreenGui")
-zyroLoadingCover.Name = "ZYRO_LoadingCover"
-zyroLoadingCover.ResetOnSpawn = false
-zyroLoadingCover.IgnoreGuiInset = true
-zyroLoadingCover.DisplayOrder = 1000000
-local zyroLoadingFrame = Instance.new("Frame")
-zyroLoadingFrame.Size = UDim2.fromScale(1, 1)
-zyroLoadingFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-zyroLoadingFrame.BorderSizePixel = 0
-zyroLoadingFrame.Parent = zyroLoadingCover
-zyroLoadingCover.Parent = game:GetService("CoreGui")
-if typeof(gethui) == "function" then
-local ok, result = pcall(gethui)
-if ok and typeof(result) == "Instance" then
-table.insert(zyroGuiContainers, result)
-pcall(function() zyroLoadingCover.Parent = result end)
-end
-end
+-- Do not cover or alter the Roblox game viewport while the library loads.
+-- The theme below is applied only after the hub ScreenGui exists.
 v = fn8()
 assert(type(v) == "table" and type(v.CreateWindow) == "function" and type(v.Finalize) == "function", "Chilli Library returned an invalid API.")
 v.ManualQuickDefaults ={
@@ -26768,7 +26749,6 @@ local CYAN = Color3.fromRGB(0, 225, 255)
 local function applyZyroTheme(instance)
 if instance:IsA("GuiObject") then
 instance.BackgroundColor3 = BLACK
-instance.BackgroundTransparency = 0
 if instance:IsA("TextButton") then instance.AutoButtonColor = false end
 end
 if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
@@ -26787,7 +26767,6 @@ for _, descendant in ipairs(root:GetDescendants()) do applyZyroTheme(descendant)
 applyZyroTheme(root)
 root.DescendantAdded:Connect(function(descendant) task.defer(applyZyroTheme, descendant) end)
 end
-pcall(function() zyroLoadingCover:Destroy() end)
 end)
 
 task.defer(function()
