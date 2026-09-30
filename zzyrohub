@@ -96,28 +96,27 @@ task.wait(1 + i * 0.5)
 end
 error("Chilli Library failed to load: ".. chilliLibraryFailedToLoad, 0)
 end
--- Remove only stale Chilli screens that existed before startup.
--- Newly-created launcher/main screens are left enabled so the ZYRO button remains clickable.
-local zyroHiddenChilliScreens = {}
+-- Cover the library initialization so the Chilli splash never flashes on screen.
+-- This does not disable or intercept the launcher; it is removed after theming.
 local zyroGuiContainers = {game:GetService("CoreGui")}
+local zyroLoadingCover = Instance.new("ScreenGui")
+zyroLoadingCover.Name = "ZYRO_LoadingCover"
+zyroLoadingCover.ResetOnSpawn = false
+zyroLoadingCover.IgnoreGuiInset = true
+zyroLoadingCover.DisplayOrder = 1000000
+local zyroLoadingFrame = Instance.new("Frame")
+zyroLoadingFrame.Size = UDim2.fromScale(1, 1)
+zyroLoadingFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+zyroLoadingFrame.BorderSizePixel = 0
+zyroLoadingFrame.Parent = zyroLoadingCover
+zyroLoadingCover.Parent = game:GetService("CoreGui")
 if typeof(gethui) == "function" then
 local ok, result = pcall(gethui)
-if ok and typeof(result) == "Instance" then table.insert(zyroGuiContainers, result) end
-end
-local function zyroIsLegacyChilli(screen)
-if not screen or not screen:IsA("ScreenGui") then return false end
-if screen.Name == "Settings" or screen.Name == "ChilliLeftCenter" or screen.Name == "ChilliLibrarySettings" or screen.Name == "ChilliLibraryLauncher" then return true end
-return screen:GetAttribute("ChilliLibraryOwned") == true
-end
-for _, container in ipairs(zyroGuiContainers) do
-for _, child in ipairs(container:GetChildren()) do
-if zyroIsLegacyChilli(child) then
-zyroHiddenChilliScreens[child] = child.Enabled
-pcall(function() child.Enabled = false end)
+if ok and typeof(result) == "Instance" then
+table.insert(zyroGuiContainers, result)
+pcall(function() zyroLoadingCover.Parent = result end)
 end
 end
-end
-
 v = fn8()
 assert(type(v) == "table" and type(v.CreateWindow) == "function" and type(v.Finalize) == "function", "Chilli Library returned an invalid API.")
 v.ManualQuickDefaults ={
@@ -26736,9 +26735,10 @@ fn4(fn21)
 end
 v:Finalize({Window = v2, MainTab = defaultTab, ShowMainTab = true})
 
--- ZYRO visual theme: absolute black, white function names and cyan accents.
+-- ZYRO visual theme: the complete inner panel is black; tab/function names are white.
 task.defer(function()
-local function findZyroRoot()
+local function findZyroRoots()
+local roots, seen = {}, {}
 local containers = {CoreGui, localPlayer:FindFirstChildOfClass("PlayerGui")}
 if typeof(gethui) == "function" then
 local ok, result = pcall(gethui)
@@ -26748,55 +26748,46 @@ for _, container in ipairs(containers) do
 if container then
 for _, descendant in ipairs(container:GetDescendants()) do
 if (descendant:IsA("TextLabel") or descendant:IsA("TextButton")) and (tostring(descendant.Text):lower():find("chilli hub", 1, true) or tostring(descendant.Text):lower():find("zyro hub", 1, true)) then
-return descendant:FindFirstAncestorOfClass("ScreenGui")
+local root = descendant:FindFirstAncestorOfClass("ScreenGui")
+if root and not seen[root] then seen[root] = true; table.insert(roots, root) end
 end
 end
 end
 end
+return roots
 end
-
-local root
-for _ = 1, 30 do
-root = findZyroRoot()
-if root then break end
-task.wait(0.2)
+local roots = {}
+for _ = 1, 40 do
+roots = findZyroRoots()
+if #roots > 0 then break end
+task.wait(0.15)
 end
-if not root then return end
-
 local BLACK = Color3.fromRGB(0, 0, 0)
 local WHITE = Color3.fromRGB(255, 255, 255)
 local CYAN = Color3.fromRGB(0, 225, 255)
-
 local function applyZyroTheme(instance)
 if instance:IsA("GuiObject") then
 instance.BackgroundColor3 = BLACK
+instance.BackgroundTransparency = 0
 if instance:IsA("TextButton") then instance.AutoButtonColor = false end
 end
 if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
 local text = tostring(instance.Text)
-if text:lower():find("chilli hub", 1, true) then
-instance.Text = text:gsub("[Cc]hilli Hub", "ZYRO HUB")
-end
+if text:lower():find("chilli hub", 1, true) then instance.Text = text:gsub("[Cc]hilli Hub", "ZYRO HUB") end
 instance.TextColor3 = WHITE
 instance.TextStrokeColor3 = BLACK
+instance.TextStrokeTransparency = 1
 end
-if instance:IsA("ImageLabel") or instance:IsA("ImageButton") then
-instance.BackgroundColor3 = BLACK
+if instance:IsA("ImageLabel") or instance:IsA("ImageButton") then instance.BackgroundColor3 = BLACK end
+if instance:IsA("UIStroke") then instance.Color = CYAN; instance.Transparency = 0 end
+if instance:IsA("UIGradient") then instance.Color = ColorSequence.new(BLACK, BLACK) end
 end
-if instance:IsA("UIStroke") then
-instance.Color = CYAN
-instance.Transparency = 0
-end
-if instance:IsA("UIGradient") then
-instance.Color = ColorSequence.new(BLACK, BLACK)
-end
-end
-
+for _, root in ipairs(roots) do
 for _, descendant in ipairs(root:GetDescendants()) do applyZyroTheme(descendant) end
 applyZyroTheme(root)
 root.DescendantAdded:Connect(function(descendant) task.defer(applyZyroTheme, descendant) end)
-
--- Legacy Chilli screens remain hidden; newly-created ZYRO launcher/main screens are untouched.
+end
+pcall(function() zyroLoadingCover:Destroy() end)
 end)
 
 task.defer(function()
